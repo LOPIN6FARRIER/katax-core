@@ -1,18 +1,73 @@
 {
   "name": "katax-core",
   "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "description": "Lightweight and extensible schema validation library for TypeScript/JavaScript",
+  "keywords": [
+    "validation",
+    "schema",
+    "typescript",
+    "type-safe",
+    "validator",
+    "parsing",
+    "runtime-validation"
+  ],
+  "homepage": "https://github.com/vinicioesparza/katax-core#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vinicioesparza/katax-core.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "bugs": {
+    "url": "https://github.com/vinicioesparza/katax-core/issues"
+  },
+  "author": "Vinicio Esparza",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "dev": "tsup src/index.ts --watch",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "test": "tsx src/test/k.test.ts",
+    "test:all": "npm run test:string && npm run test:number && npm run test:object && npm run test:array && npm run test:date && npm run test:email && npm run test:base64",
+    "prepublishOnly": "npm run build && npm test",
+    "test:string": "tsx src/test/string.test.ts",
+    "test:number": "tsx src/test/number.test.ts",
+    "test:object": "tsx src/test/object.test.ts",
+    "test:default": "tsx src/test/default.test.ts",
+    "test:transform": "tsx src/test/transform.test.ts",
+    "test:date": "tsx src/test/date.test.ts",
+    "test:twodate": "tsx src/test/twodate.test.ts",
+    "test:array": "tsx src/test/array.test.ts",
+    "test:edge-cases": "tsx src/test/edge-cases.test.ts",
+    "test:stress-test": "tsx src/test/stress-test.test.ts",
+    "test:bug-hunting": "tsx src/test/bug-hunting.test.ts",
+    "test:new-schemas": "tsx src/test/new-schemas.test.ts",
+    "test:new-schemas-demo": "tsx src/test/new-schemas-demo.test.ts",
+    "test:base64": "tsx src/test/base64.test.ts",
+    "test:email": "tsx src/test/email.test.ts",
+    "test:file": "tsx src/test/file.test.ts"
+  },
   "devDependencies": {
     "eslint": "^9.39.2",
     "prettier": "^3.7.4",
     "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "date-fns": "^4.1.0"
   }
 }
