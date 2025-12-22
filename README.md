@@ -11,6 +11,7 @@ A lightweight and extensible schema validation library for TypeScript/JavaScript
 
 - **Type-safe validation** with full TypeScript support
 - **Comprehensive schemas**: String, Number, Object, Array, Date, Email, Base64, File
+- **Async validation support** - validate against databases, APIs, and external services
 - **Chaining API** for clean and readable validation rules
 - **Multiple error reporting** - get all validation errors at once
 - **Transform support** - validate and transform data in one step
@@ -141,6 +142,68 @@ const result = schema.safeParse('  hello  ');
 // result.data === 'HELLO'
 ```
 
+## ⚡ Async Validation
+
+Validate against external services, databases, or APIs:
+
+```typescript
+import { k } from 'katax-core';
+
+// Check if email is already registered
+const emailUniqueValidator = async (email, path) => {
+  const exists = await db.users.findOne({ email });
+  if (exists) {
+    return [{ path, message: 'Email already registered' }];
+  }
+  return [];
+};
+
+// Check if password is compromised
+const passwordSecureValidator = async (password, path) => {
+  const isCompromised = await checkHaveIBeenPwned(password);
+  if (isCompromised) {
+    return [{ path, message: 'Password has been compromised' }];
+  }
+  return [];
+};
+
+// Create schema with async validators
+const registrationSchema = k.object({
+  email: k.email().asyncRefine(emailUniqueValidator),
+  password: k.string()
+    .minLength(8)
+    .regex(/[A-Z]/, 'Must contain uppercase')
+    .regex(/[0-9]/, 'Must contain number')
+    .asyncRefine(passwordSecureValidator)
+});
+
+// Use async validation
+const result = await registrationSchema.safeParseAsync({
+  email: 'user@example.com',
+  password: 'SecurePass123'
+});
+
+if (result.success) {
+  console.log('Registration data valid:', result.data);
+} else {
+  console.log('Validation errors:', result.issues);
+}
+```
+
+### Async Methods
+
+- `.asyncRefine(validator)` - Add async validator
+- `.safeParseAsync(input)` - Async validation with safe result
+- `.parseAsync(input)` - Async validation that throws on error
+- `.isValidAsync(input)` - Check if valid asynchronously
+
+### Features
+
+- ✅ Runs sync validations first, then async (fail-fast)
+- ✅ Works with nested objects and arrays
+- ✅ Compatible with `optional()`, `nullable()`, `default()`
+- ✅ Multiple async validators can be chained
+
 ## 🎯 Advanced Usage
 
 ### Optional and Nullable
@@ -228,14 +291,31 @@ export type CreateProjectData = kataxInfer<typeof createProjectSchema>;
 
 ### Core Methods
 
+**Synchronous:**
 - `.parse(input)` - Parse and validate input, throws on error
 - `.safeParse(input)` - Safe parsing, returns `{ success: boolean, data?: T, issues?: Issue[] }`
 - `.validate(input)` - Validation only, returns `{ valid: boolean, issues: Issue[] }`
+
+**Asynchronous:**
+- `.asyncRefine(validator)` - Add async validator function
+- `.parseAsync(input)` - Async parse and validate, throws on error
+- `.safeParseAsync(input)` - Async safe parsing with result object
+- `.isValidAsync(input)` - Async validation check, returns `{ valid: boolean, issues: Issue[] }`
+
+**Modifiers:**
 - `.optional()` - Make schema optional (allows undefined)
 - `.nullable()` - Make schema nullable (allows null)
+- `.default(value)` - Provide default value
 - `.transform(fn)` - Transform validated data
 
 ## 🔄 Changelog
+
+### v1.1.0
+- ✨ **NEW**: Async validation support with `.asyncRefine()`
+- ✨ **NEW**: Async methods: `.safeParseAsync()`, `.parseAsync()`, `.isValidAsync()`
+- ✨ **NEW**: Async validation works with nested objects and arrays
+- 🐛 Fixed: Array schema async validation compatibility
+- 📚 Updated documentation with async examples
 
 ### v1.0.0
 - Initial release
@@ -258,8 +338,8 @@ A: Yes, most validation methods accept an optional custom error message paramete
 
 ## 🏗️ Roadmap
 
+- [x] Async validation support
 - [ ] Union and intersection schemas
-- [ ] Async validation support
 - [ ] Custom schema creation helpers
 - [ ] Performance optimizations
 - [ ] Plugin system

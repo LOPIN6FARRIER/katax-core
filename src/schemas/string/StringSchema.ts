@@ -28,6 +28,13 @@ export class StringSchema extends BaseSchema<string> {
     return input;
   }
 
+  protected _clone(): StringSchema {
+    const cloned = new StringSchema();
+    cloned.rules = [...this.rules];
+    cloned._asyncValidators = [...this._asyncValidators];
+    return cloned;
+  }
+
   lowercase(message?: string): this {
     this.rules.push({
       check: (value) => value === value.toLowerCase(),

@@ -28,6 +28,12 @@ export class NumberSchema extends BaseSchema<number> {
     return input
   }
 
+  protected _clone(): NumberSchema {
+    const cloned = new NumberSchema()
+    cloned.rules = [...this.rules]
+    cloned._asyncValidators = [...this._asyncValidators]
+    return cloned
+  }
 
   min(length: number, message?: string): this {
     this.rules.push({

@@ -1,6 +1,7 @@
 export * from "./k"
 export * from "./core/Schema"
 export * from "./core/result"
+export { AsyncSafeParseResult, AsyncValidationResult, AsyncValidator } from "./core/AsyncResult"
 export * from "./core/errors"
 
 // Type inference utility

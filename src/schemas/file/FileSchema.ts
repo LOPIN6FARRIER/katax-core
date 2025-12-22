@@ -33,6 +33,13 @@ export class FileSchema extends BaseSchema<File> {
     return input
   }
 
+  protected _clone(): FileSchema {
+    const cloned = new FileSchema()
+    cloned.rules = [...this.rules]
+    cloned._asyncValidators = [...this._asyncValidators]
+    return cloned
+  }
+
   // File size validation
   maxSize(bytes: number, message?: string): this {
     this.rules.push({

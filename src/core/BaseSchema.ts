@@ -1,6 +1,7 @@
 // src/core/BaseSchema.ts
 
 import type { Issue, SafeParseResult, ValidationResult } from "./result"
+import type { AsyncSafeParseResult, AsyncValidationResult, AsyncValidator } from "./AsyncResult"
 import { KataxError } from "./errors"
 import type { Schema } from "./Schema"
 
@@ -13,6 +14,8 @@ import type { Schema } from "./Schema"
  * @template T The TypeScript type this schema validates to
  */
 export abstract class BaseSchema<T> implements Schema<T> {
+  public _asyncValidators: AsyncValidator<T>[] = []
+
   /**
    * Internal parsing method that must be implemented by each schema type.
    * 
@@ -75,6 +78,102 @@ export abstract class BaseSchema<T> implements Schema<T> {
     return new OptionalSchema(this)
   }
 
+  /**
+   * Add an async validator to this schema.
+   * 
+   * @param validator - An async function that validates the input
+   * @returns A new schema with the async validator added
+   */
+  asyncRefine(validator: AsyncValidator<T>): BaseSchema<T> {
+    const cloned = this._clone()
+    cloned._asyncValidators.push(validator)
+    return cloned
+  }
+
+  /**
+   * Parse input asynchronously with safe error handling.
+   * 
+   * @param input - The value to validate
+   * @returns Promise resolving to a safe parse result
+   */
+  async safeParseAsync(input: unknown): Promise<AsyncSafeParseResult<T>> {
+    const path: Issue["path"] = []
+
+    // Run synchronous validation first
+    const syncResult = this._parse(input, path)
+    // Check if syncResult is an array of Issues (has path and message properties)
+    if (Array.isArray(syncResult) && syncResult.length > 0 &&
+        typeof syncResult[0] === 'object' && syncResult[0] !== null &&
+        'path' in syncResult[0] && 'message' in syncResult[0]) {
+      return { success: false, issues: syncResult as Issue[] }
+    }
+
+    // At this point, syncResult is T (not Issue[])
+    const validData = syncResult as T
+
+    // Run async validators if sync validation passed
+    let allIssues: Issue[] = []
+    for (const validator of this._asyncValidators) {
+      const issues = await validator(validData, path)
+      allIssues = allIssues.concat(issues)
+    }
+
+    // For composed schemas, also check for nested async validations
+    const nestedAsyncIssues = await this._parseAsyncNested(validData, path)
+    allIssues = allIssues.concat(nestedAsyncIssues)
+
+    if (allIssues.length > 0) {
+      return { success: false, issues: allIssues }
+    }
+
+    return { success: true, data: validData }
+  }
+
+  /**
+   * Parse input asynchronously and throw on validation failure.
+   * 
+   * @param input - The value to validate
+   * @returns Promise resolving to the validated value
+   * @throws {KataxError} When validation fails
+   */
+  async parseAsync(input: unknown): Promise<T> {
+    const result = await this.safeParseAsync(input)
+    if (!result.success) {
+      throw new KataxError(result.issues!)
+    }
+    return result.data!
+  }
+
+  /**
+   * Validate input asynchronously and return a validation result.
+   * 
+   * @param input - The value to validate
+   * @returns Promise resolving to validation result with success status
+   */
+  async isValidAsync(input: unknown): Promise<AsyncValidationResult> {
+    const result = await this.safeParseAsync(input)
+    return { valid: result.success, issues: result.issues || [] }
+  }
+
+  /**
+   * Handle nested async validation for composed schemas.
+   * Override in schemas that contain other schemas (like ObjectSchema, ArraySchema).
+   * 
+   * @param value - The parsed value from sync validation
+   * @param path - Current path in validation
+   * @returns Promise of issues from nested async validations
+   */
+  protected async _parseAsyncNested(value: T, path: Issue["path"]): Promise<Issue[]> {
+    // Base implementation - no nested async validation
+    return []
+  }
+
+  /**
+   * Create a clone of this schema (used for adding async validators).
+   * Must be implemented by each schema type.
+   */
+  protected abstract _clone(): BaseSchema<T>
+
   nullable(): NullableSchema<T> {
     return new NullableSchema(this)
   }
@@ -102,6 +201,30 @@ class OptionalSchema<T> extends BaseSchema<T | undefined> {
     }
     return this.schema._parse(input, path)
   }
+
+  protected _clone(): BaseSchema<T | undefined> {
+    const cloned = new OptionalSchema(this.schema)
+    cloned._asyncValidators = [...this._asyncValidators]
+    return cloned
+  }
+
+  protected async _parseAsyncNested(value: T | undefined, path: Issue["path"]): Promise<Issue[]> {
+    // If undefined, no nested validation needed
+    if (value === undefined) {
+      return []
+    }
+    
+    // Otherwise, delegate to the wrapped schema
+    if (this.schema._asyncValidators.length > 0 || 
+        typeof (this.schema as any)._parseAsyncNested === 'function') {
+      const result = await this.schema.safeParseAsync(value)
+      if (!result.success) {
+        return result.issues || []
+      }
+    }
+    
+    return []
+  }
 }
 
 class NullableSchema<T> extends BaseSchema<T | null> {
@@ -114,6 +237,30 @@ class NullableSchema<T> extends BaseSchema<T | null> {
       return null
     }
     return this.schema._parse(input, path)
+  }
+
+  protected _clone(): BaseSchema<T | null> {
+    const cloned = new NullableSchema(this.schema)
+    cloned._asyncValidators = [...this._asyncValidators]
+    return cloned
+  }
+
+  protected async _parseAsyncNested(value: T | null, path: Issue["path"]): Promise<Issue[]> {
+    // If null, no nested validation needed
+    if (value === null) {
+      return []
+    }
+    
+    // Otherwise, delegate to the wrapped schema
+    if (this.schema._asyncValidators.length > 0 || 
+        typeof (this.schema as any)._parseAsyncNested === 'function') {
+      const result = await this.schema.safeParseAsync(value)
+      if (!result.success) {
+        return result.issues || []
+      }
+    }
+    
+    return []
   }
 }
 
@@ -128,6 +275,25 @@ class DefaultSchema<T> extends BaseSchema<T> {
       return this.cloneValue(this.defaultValue)
     }
     return this.schema._parse(input, path)
+  }
+
+  protected _clone(): BaseSchema<T> {
+    const cloned = new DefaultSchema(this.schema, this.defaultValue)
+    cloned._asyncValidators = [...this._asyncValidators]
+    return cloned
+  }
+
+  protected async _parseAsyncNested(value: T, path: Issue["path"]): Promise<Issue[]> {
+    // Delegate to the wrapped schema for async validation
+    if (this.schema._asyncValidators.length > 0 || 
+        typeof (this.schema as any)._parseAsyncNested === 'function') {
+      const result = await this.schema.safeParseAsync(value)
+      if (!result.success) {
+        return result.issues || []
+      }
+    }
+    
+    return []
   }
 
   private cloneValue(value: T): T {
@@ -168,5 +334,18 @@ class TransformSchema<T, U> extends BaseSchema<U> {
     } catch (error) {
       return [{ path, message: `Transform error: ${error instanceof Error ? error.message : 'Unknown error'}` }]
     }
+  }
+
+  protected _clone(): BaseSchema<U> {
+    const cloned = new TransformSchema(this.schema, this.transformer)
+    cloned._asyncValidators = [...this._asyncValidators]
+    return cloned
+  }
+
+  protected async _parseAsyncNested(value: U, path: Issue["path"]): Promise<Issue[]> {
+    // For transform schemas, we need to validate the original value before transformation
+    // But since we only have the transformed value here, we can't do much
+    // The original schema's async validation should have been run during sync parsing
+    return []
   }
 }

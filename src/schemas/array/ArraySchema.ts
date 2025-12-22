@@ -1,6 +1,5 @@
 import { BaseSchema } from "../../core/BaseSchema"
 import { Issue } from "../../core/result"
-import type { Schema } from "../../core/Schema"
 
 type ValidationRule<T> = {
   check: (value: T[]) => boolean
@@ -9,9 +8,9 @@ type ValidationRule<T> = {
 
 export class ArraySchema<T> extends BaseSchema<T[]> {
   private rules: ValidationRule<T>[] = []
-  private elementSchema?: Schema<T>
+  private elementSchema?: BaseSchema<T>
 
-  constructor(elementSchema?: Schema<T>) {
+  constructor(elementSchema?: BaseSchema<T>) {
     super()
     this.elementSchema = elementSchema
   }
@@ -72,6 +71,39 @@ export class ArraySchema<T> extends BaseSchema<T[]> {
     }
 
     return input as T[]
+  }
+
+  protected _clone(): ArraySchema<T> {
+    const cloned = new ArraySchema(this.elementSchema)
+    cloned.rules = [...this.rules]
+    cloned._asyncValidators = [...this._asyncValidators]
+    return cloned
+  }
+
+  protected async _parseAsyncNested(value: T[], path: Issue["path"]): Promise<Issue[]> {
+    const allIssues: Issue[] = []
+    
+    // If we have an element schema, check for async validation on elements
+    if (this.elementSchema && 
+        (this.elementSchema._asyncValidators.length > 0 || 
+         typeof (this.elementSchema as any)._parseAsyncNested === 'function')) {
+      
+      for (let i = 0; i < value.length; i++) {
+        const elementPath = [...path, i]
+        const elementResult = await this.elementSchema.safeParseAsync(value[i])
+        
+        if (!elementResult.success) {
+          for (const issue of elementResult.issues || []) {
+            allIssues.push({
+              path: [...elementPath, ...issue.path],
+              message: issue.message
+            })
+          }
+        }
+      }
+    }
+    
+    return allIssues
   }
 
   minLength(min: number, message?: string): this {

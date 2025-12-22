@@ -63,6 +63,13 @@ export class TwoDatesSchema extends BaseSchema<[Date, Date]> {
     return [date1, date2]
   }
 
+  protected _clone(): TwoDatesSchema {
+    const cloned = new TwoDatesSchema(this.separator)
+    cloned.rules = [...this.rules]
+    cloned._asyncValidators = [...this._asyncValidators]
+    return cloned
+  }
+
   maxDifference(days: number, message?: string): this {
     this.rules.push({
       check: (d1, d2) => Math.abs(differenceInDays(d1, d2)) <= days,

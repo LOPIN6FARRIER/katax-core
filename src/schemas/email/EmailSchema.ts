@@ -33,6 +33,13 @@ export class EmailSchema extends BaseSchema<string> {
     return input
   }
 
+  protected _clone(): EmailSchema {
+    const cloned = new EmailSchema()
+    cloned.rules = [...this.rules]
+    cloned._asyncValidators = [...this._asyncValidators]
+    return cloned
+  }
+
   // Domain validation
   domain(allowedDomain: string, message?: string): this {
     this.rules.push({

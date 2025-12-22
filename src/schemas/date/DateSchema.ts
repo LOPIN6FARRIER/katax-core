@@ -44,6 +44,13 @@ export class DateSchema extends BaseSchema<Date> {
     return date
   }
 
+  protected _clone(): DateSchema {
+    const cloned = new DateSchema()
+    cloned.rules = [...this.rules]
+    cloned._asyncValidators = [...this._asyncValidators]
+    return cloned
+  }
+
   min(minDate: string, message?: string): this {
     const min = parseISO(minDate)
     this.rules.push({

@@ -28,6 +28,13 @@ export class BooleanSchema extends BaseSchema<boolean> {
     return input
   }
 
+  protected _clone(): BooleanSchema {
+    const cloned = new BooleanSchema()
+    cloned.rules = [...this.rules]
+    cloned._asyncValidators = [...this._asyncValidators]
+    return cloned
+  }
+
   isTrue(message?: string): this {
     this.rules.push({
       check: (value) => value === true,

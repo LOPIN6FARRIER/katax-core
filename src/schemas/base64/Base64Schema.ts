@@ -33,6 +33,13 @@ export class Base64Schema extends BaseSchema<string> {
     return input
   }
 
+  protected _clone(): Base64Schema {
+    const cloned = new Base64Schema()
+    cloned.rules = [...this.rules]
+    cloned._asyncValidators = [...this._asyncValidators]
+    return cloned
+  }
+
   // Validate minimum decoded size
   minDecodedSize(bytes: number, message?: string): this {
     this.rules.push({

@@ -8,9 +8,9 @@ type InferObjectShape<T extends ObjectShape> = {
 }
 
 export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectShape<T>> {
-  private caseSensitive: boolean = true
+  protected caseSensitive: boolean = true
 
-  constructor(private shape: T) {
+  constructor(protected shape: T) {
     super()
   }
 
@@ -70,6 +70,42 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
     }
 
     return result as InferObjectShape<T>
+  }
+
+  protected _clone(): ObjectSchema<T> {
+    const cloned = new ObjectSchema(this.shape)
+    cloned.caseSensitive = this.caseSensitive
+    cloned._asyncValidators = [...this._asyncValidators]
+    return cloned
+  }
+
+  protected async _parseAsyncNested(value: InferObjectShape<T>, path: Issue["path"]): Promise<Issue[]> {
+    const allIssues: Issue[] = []
+    
+    // Run async validation on each field that has async validators
+    for (const key in this.shape) {
+      const fieldSchema = this.shape[key]
+      const fieldValue = (value as any)[key]
+      const fieldPath = [...path, key]
+      
+      // Check if this field schema has async validators or nested async validation
+      if (fieldSchema._asyncValidators.length > 0 || 
+          typeof (fieldSchema as any)._parseAsyncNested === 'function') {
+        
+        const fieldResult = await fieldSchema.safeParseAsync(fieldValue)
+        if (!fieldResult.success) {
+          // Adjust the path in the issues
+          for (const issue of fieldResult.issues || []) {
+            allIssues.push({
+              path: [...fieldPath, ...issue.path],
+              message: issue.message
+            })
+          }
+        }
+      }
+    }
+    
+    return allIssues
   }
 
   // Method to set case sensitivity
@@ -136,5 +172,17 @@ class StrictObjectSchema<T extends ObjectShape> extends ObjectSchema<T> {
     }
 
     return result
+  }
+
+  protected _clone(): StrictObjectSchema<T> {
+    const cloned = new StrictObjectSchema(this.shape)
+    cloned.caseSensitive = this.caseSensitive
+    cloned._asyncValidators = [...this._asyncValidators]
+    return cloned
+  }
+
+  protected async _parseAsyncNested(value: InferObjectShape<T>, path: Issue["path"]): Promise<Issue[]> {
+    // Reuse the parent implementation
+    return super._parseAsyncNested(value, path)
   }
 }

@@ -1,5 +1,5 @@
 import { ArraySchema } from "./ArraySchema"
-import type { Schema } from "../../core/Schema"
+import type { BaseSchema } from "../../core/BaseSchema"
 
 /**
  * Creates a new array validation schema.
@@ -21,4 +21,4 @@ import type { Schema } from "../../core/Schema"
  * schema.parse(["a", "b", "c"]) // ["a", "b", "c"]
  * ```
  */
-export const array = <T>(elementSchema?: Schema<T>) => new ArraySchema(elementSchema)
+export const array = <T>(elementSchema?: BaseSchema<T>) => new ArraySchema(elementSchema)
