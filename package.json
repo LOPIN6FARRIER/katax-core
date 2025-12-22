@@ -1,6 +1,6 @@
 {
   "name": "katax-core",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Lightweight and extensible schema validation library for TypeScript/JavaScript",
   "keywords": [
     "validation",
@@ -11,13 +11,13 @@
     "parsing",
     "runtime-validation"
   ],
-  "homepage": "https://github.com/vinicioesparza/katax-core#readme",
+  "homepage": "https://github.com/LOPIN6FARRIER/katax-core#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vinicioesparza/katax-core.git"
+    "url": "git+https://github.com/LOPIN6FARRIER/katax-core.git"
   },
   "bugs": {
-    "url": "https://github.com/vinicioesparza/katax-core/issues"
+    "url": "https://github.com/LOPIN6FARRIER/katax-core/issues"
   },
   "author": "Vinicio Esparza",
   "license": "MIT",
