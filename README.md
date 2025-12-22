@@ -198,13 +198,30 @@ if (!result.success) {
 Full type inference and safety:
 
 ```typescript
+import { k, kataxInfer } from 'katax-core';
+
 const schema = k.object({
   name: k.string(),
   age: k.number()
 });
 
-type User = k.infer<typeof schema>;
+type User = kataxInfer<typeof schema>;
 // User = { name: string; age: number }
+```
+
+**Example with descriptive type alias:**
+
+```typescript
+import { k, kataxInfer } from 'katax-core';
+
+const createProjectSchema = k.object({
+  title: k.string().min(3),
+  description: k.string().optional(),
+  tags: k.array(k.string())
+});
+
+export type CreateProjectData = kataxInfer<typeof createProjectSchema>;
+// CreateProjectData = { title: string; description?: string; tags: string[] }
 ```
 
 ## 📋 API Reference

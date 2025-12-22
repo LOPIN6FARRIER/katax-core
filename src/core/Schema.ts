@@ -10,5 +10,5 @@ export interface Schema<T> {
   validate(input: unknown): ValidationResult
 
   
-  readonly infer: T
+  readonly kataxInfer: T
 }

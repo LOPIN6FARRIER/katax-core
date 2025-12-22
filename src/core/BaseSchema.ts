@@ -88,7 +88,7 @@ export abstract class BaseSchema<T> implements Schema<T> {
   }
 
   // Type inference only
-  declare readonly infer: T
+  declare readonly kataxInfer: T
 }
 
 class OptionalSchema<T> extends BaseSchema<T | undefined> {

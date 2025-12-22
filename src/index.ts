@@ -4,7 +4,7 @@ export * from "./core/result"
 export * from "./core/errors"
 
 // Type inference utility
-export type infer<T> = T extends { safeParse(input: unknown): infer R }
+export type kataxInfer<T> = T extends { safeParse(input: unknown): infer R }
   ? R extends { success: true; data: infer D }
     ? D
     : never
