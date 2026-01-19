@@ -10,6 +10,8 @@ import { email } from "./schemas/email/email"
 import { union } from "./schemas/union/union"
 import { intersection } from "./schemas/intersection/intersection"
 import { lazy } from "./schemas/lazy/lazy"
+import { coerce } from "./schemas/coerce/CoerceSchemas"
+import { preprocess } from "./schemas/preprocess/preprocess"
 import {
   custom,
   literal,
@@ -92,6 +94,10 @@ export const k = {
   /** Create a tuple schema for fixed-length typed arrays */
   tuple,
   /** Create a record schema for objects with uniform value types */
-  record
+  record,
+  /** Coercion schemas that auto-convert types before validation */
+  coerce,
+  /** Preprocess input before validation */
+  preprocess
 }
 

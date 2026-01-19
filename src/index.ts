@@ -20,6 +20,21 @@ export {
   RecordSchema
 } from "./schemas/custom/CustomSchema"
 
+// Coercion schemas
+export {
+  CoercedNumberSchema,
+  CoercedBooleanSchema,
+  CoercedStringSchema,
+  CoercedDateSchema,
+  coerce
+} from "./schemas/coerce/CoerceSchemas"
+
+// Preprocess
+export { preprocess, PreprocessSchema } from "./schemas/preprocess/preprocess"
+
+// CatchSchema from BaseSchema
+export { CatchSchema } from "./core/BaseSchema"
+
 // Type inference utility
 export type kataxInfer<T> = T extends { safeParse(input: unknown): infer R }
   ? R extends { success: true; data: infer D }

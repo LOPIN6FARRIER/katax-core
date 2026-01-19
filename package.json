@@ -1,6 +1,6 @@
 {
   "name": "katax-core",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Lightweight and extensible schema validation library for TypeScript/JavaScript",
   "keywords": [
     "validation",
@@ -62,7 +62,8 @@
     "test:email": "tsx src/test/email.test.ts",
     "test:file": "tsx src/test/file.test.ts",
     "test:union": "tsx src/test/union-intersection.test.ts",
-    "test:custom": "tsx src/test/custom-schemas.test.ts"
+    "test:custom": "tsx src/test/custom-schemas.test.ts",
+    "test:coerce": "tsx src/test/coerce-preprocess.test.ts"
   },
   "devDependencies": {
     "eslint": "^9.39.2",

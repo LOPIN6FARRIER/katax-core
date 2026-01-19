@@ -186,6 +186,24 @@ export abstract class BaseSchema<T> implements Schema<T> {
     return new TransformSchema(this, transformer)
   }
 
+  /**
+   * Provide a fallback value if validation fails.
+   * Instead of returning errors, the schema will return the catch value.
+   *
+   * @param catchValue - The value to return if validation fails
+   * @returns A CatchSchema that returns catchValue on failure
+   *
+   * @example
+   * ```typescript
+   * const schema = k.string().catch("default")
+   * schema.parse("hello")  // "hello"
+   * schema.parse(123)      // "default" (instead of error)
+   * ```
+   */
+  catch(catchValue: T): CatchSchema<T> {
+    return new CatchSchema(this, catchValue)
+  }
+
   // Type inference only
   declare readonly kataxInfer: T
 }
@@ -347,5 +365,55 @@ class TransformSchema<T, U> extends BaseSchema<U> {
     // But since we only have the transformed value here, we can't do much
     // The original schema's async validation should have been run during sync parsing
     return []
+  }
+}
+
+/**
+ * Schema that returns a fallback value on validation failure.
+ */
+export class CatchSchema<T> extends BaseSchema<T> {
+  constructor(private _innerSchema: BaseSchema<T>, private _catchValue: T) {
+    super()
+  }
+
+  _parse(input: unknown, path: Issue["path"]): Issue[] | T {
+    const result = this._innerSchema._parse(input, path)
+
+    // Check if result is an array of Issues
+    if (Array.isArray(result) && result.length > 0 &&
+        typeof result[0] === 'object' && result[0] !== null &&
+        'path' in result[0] && 'message' in result[0]) {
+      // Return catch value instead of errors
+      return this._cloneValue(this._catchValue)
+    }
+
+    return result
+  }
+
+  protected _clone(): CatchSchema<T> {
+    const cloned = new CatchSchema(this._innerSchema, this._catchValue)
+    cloned._asyncValidators = [...this._asyncValidators]
+    return cloned
+  }
+
+  protected async _parseAsyncNested(value: T, path: Issue["path"]): Promise<Issue[]> {
+    // For catch schemas, async errors are also caught
+    return []
+  }
+
+  private _cloneValue(value: T): T {
+    if (Array.isArray(value)) {
+      return [...value.map(item => this._cloneValue(item))] as T
+    }
+    if (value !== null && typeof value === 'object') {
+      const cloned: any = {}
+      for (const key in value) {
+        if ((value as object).hasOwnProperty(key)) {
+          cloned[key] = this._cloneValue((value as any)[key])
+        }
+      }
+      return cloned as T
+    }
+    return value
   }
 }

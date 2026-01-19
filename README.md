@@ -14,6 +14,10 @@ A lightweight and extensible schema validation library for TypeScript/JavaScript
 - **Union & Intersection schemas** - combine schemas flexibly
 - **Extend & Merge** - compose object schemas easily
 - **Custom schemas** - create your own validation logic
+- **Type coercion** - auto-convert strings to numbers, booleans, dates
+- **Preprocess** - transform input before validation
+- **Catch/Fallback** - error recovery with default values
+- **Passthrough/Strip** - control extra object properties
 - **Async validation support** - validate against databases, APIs, and external services
 - **Chaining API** for clean and readable validation rules
 - **Multiple error reporting** - get all validation errors at once
@@ -290,6 +294,148 @@ const data = k.unknown();
 const impossible = k.never();
 ```
 
+## 🔄 Type Coercion
+
+Automatically convert input types before validation:
+
+```typescript
+// String to number
+const coercedNumber = k.coerce.number();
+coercedNumber.parse("123");    // 123
+coercedNumber.parse("45.67");  // 45.67
+coercedNumber.parse(true);     // 1
+coercedNumber.parse(false);    // 0
+
+// With validation rules
+const positiveInt = k.coerce.number().positive().integer();
+positiveInt.parse("42");       // 42
+positiveInt.parse("-5");       // Error: must be positive
+
+// String to boolean
+const coercedBoolean = k.coerce.boolean();
+coercedBoolean.parse("true");  // true
+coercedBoolean.parse("false"); // false
+coercedBoolean.parse("1");     // true
+coercedBoolean.parse("0");     // false
+coercedBoolean.parse("yes");   // true
+coercedBoolean.parse("no");    // false
+coercedBoolean.parse(1);       // true
+coercedBoolean.parse(0);       // false
+
+// Any to string
+const coercedString = k.coerce.string();
+coercedString.parse(123);      // "123"
+coercedString.parse(true);     // "true"
+coercedString.parse(null);     // ""
+
+// String/number to date
+const coercedDate = k.coerce.date();
+coercedDate.parse("2024-01-15");      // Date object
+coercedDate.parse(1705276800000);     // Date from timestamp
+coercedDate.parse(new Date());        // Passthrough
+
+// With date validation
+const futureDate = k.coerce.date().isFuture();
+const pastDate = k.coerce.date().isPast();
+const rangeDate = k.coerce.date().between('2024-01-01', '2024-12-31');
+```
+
+## ⚙️ Preprocess
+
+Transform input before validation:
+
+```typescript
+// Trim and lowercase before validating
+const normalizedEmail = k.preprocess(
+  (val) => typeof val === 'string' ? val.trim().toLowerCase() : val,
+  k.string().email()
+);
+normalizedEmail.parse("  JOHN@EXAMPLE.COM  ");  // "john@example.com"
+
+// Parse JSON string to object
+const parseJSON = k.preprocess(
+  (val) => {
+    if (typeof val === 'string') {
+      try { return JSON.parse(val); }
+      catch { return val; }
+    }
+    return val;
+  },
+  k.object({
+    name: k.string(),
+    age: k.number()
+  })
+);
+parseJSON.parse('{"name":"John","age":30}');  // { name: "John", age: 30 }
+
+// Remove currency symbols before coercing
+const price = k.preprocess(
+  (val) => typeof val === 'string' ? val.replace(/[$,]/g, '').trim() : val,
+  k.coerce.number()
+);
+price.parse("$1,234.56");  // 1234.56
+```
+
+## 🔒 Catch/Fallback
+
+Provide default values on validation failure:
+
+```typescript
+// Basic catch - return default on error
+const stringWithDefault = k.string().catch("default value");
+stringWithDefault.parse("hello");     // "hello"
+stringWithDefault.parse(123);         // "default value" (number fails string validation)
+stringWithDefault.parse(null);        // "default value"
+
+// Number with catch
+const safeNumber = k.number().positive().catch(0);
+safeNumber.parse(42);                 // 42
+safeNumber.parse(-5);                 // 0 (negative fails positive check)
+safeNumber.parse("abc");              // 0 (not a number)
+
+// Object with catch
+const userWithDefault = k.object({
+  name: k.string(),
+  age: k.number()
+}).catch({ name: "Anonymous", age: 0 });
+
+userWithDefault.parse({ name: "John", age: 30 });  // { name: "John", age: 30 }
+userWithDefault.parse({ invalid: true });          // { name: "Anonymous", age: 0 }
+
+// Combine with coercion
+const safePrice = k.coerce.number().positive().catch(0);
+safePrice.parse("99.99");   // 99.99
+safePrice.parse("invalid"); // 0
+safePrice.parse(-50);       // 0
+```
+
+## 📦 Passthrough, Strip, and Strict
+
+Control how object schemas handle extra properties:
+
+```typescript
+const userSchema = k.object({ name: k.string() });
+
+// Default behavior: strip extra keys
+userSchema.parse({ name: 'John', extra: 'removed' });
+// { name: 'John' }
+
+// Passthrough: keep extra keys
+const passthroughSchema = userSchema.passthrough();
+passthroughSchema.parse({ name: 'John', extra: 'kept', another: 123 });
+// { name: 'John', extra: 'kept', another: 123 }
+
+// Explicit strip (same as default)
+const stripSchema = userSchema.strip();
+stripSchema.parse({ name: 'John', extra: 'removed' });
+// { name: 'John' }
+
+// Strict: error on extra keys
+const strictSchema = userSchema.strict();
+strictSchema.parse({ name: 'John', extra: 'not allowed' });
+// Error: Unknown keys: extra
+```
+
 ## 🔄 Transforms
 
 ```typescript
@@ -564,6 +710,15 @@ export type CreateProjectData = kataxInfer<typeof createProjectSchema>;
 
 ## 🔄 Changelog
 
+### v1.3.0
+- ✨ **NEW**: Type coercion with `k.coerce.number()`, `k.coerce.boolean()`, `k.coerce.string()`, `k.coerce.date()` - auto-convert types before validation
+- ✨ **NEW**: Preprocess with `k.preprocess()` - transform input before validation
+- ✨ **NEW**: Catch/Fallback with `.catch()` - return default values on validation errors
+- ✨ **NEW**: Passthrough with `.passthrough()` - keep extra object properties
+- ✨ **NEW**: Strip with `.strip()` - explicitly remove extra object properties
+- 🔧 Improved date coercion with validation rules (min, max, between, isFuture, isPast)
+- 📚 Comprehensive documentation for all new features
+
 ### v1.2.0
 - ✨ **NEW**: Union schemas with `k.union()` - validate against multiple possible types
 - ✨ **NEW**: Intersection schemas with `k.intersection()` - combine schemas that must all match
@@ -612,8 +767,11 @@ A: Yes, most validation methods accept an optional custom error message paramete
 - [x] Performance optimizations
 - [x] Extend and merge for object schemas
 - [x] Recursive schemas with lazy evaluation
+- [x] Coercion (auto-convert types)
+- [x] Preprocess (transform before validation)
+- [x] Catch/Fallback (error recovery)
+- [x] Passthrough/Strip (extra properties control)
 - [ ] Plugin system
-- [ ] Coercion (auto-convert types)
 - [ ] i18n support for error messages
 
 ## 🐛 Issues & Support

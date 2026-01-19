@@ -203,6 +203,139 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
   getShape(): T {
     return this.shape
   }
+
+  /**
+   * Allow extra keys to pass through without validation.
+   * Extra keys will be included in the output.
+   *
+   * @returns A PassthroughObjectSchema that allows extra keys
+   *
+   * @example
+   * ```typescript
+   * const schema = k.object({ name: k.string() }).passthrough()
+   * schema.parse({ name: 'John', extra: 'allowed' })
+   * // Result: { name: 'John', extra: 'allowed' }
+   * ```
+   */
+  passthrough(): PassthroughObjectSchema<T> {
+    return new PassthroughObjectSchema(this.shape, this.caseSensitive)
+  }
+
+  /**
+   * Remove extra keys from the output (keys not in the schema).
+   * This is the default behavior, but can be used to override passthrough.
+   *
+   * @returns A StripObjectSchema that removes extra keys
+   *
+   * @example
+   * ```typescript
+   * const schema = k.object({ name: k.string() }).strip()
+   * schema.parse({ name: 'John', extra: 'removed' })
+   * // Result: { name: 'John' }
+   * ```
+   */
+  strip(): StripObjectSchema<T> {
+    return new StripObjectSchema(this.shape, this.caseSensitive)
+  }
+}
+
+/**
+ * ObjectSchema that allows extra keys to pass through.
+ */
+class PassthroughObjectSchema<T extends ObjectShape> extends ObjectSchema<T> {
+  constructor(shape: T, caseSensitive: boolean = true) {
+    super(shape)
+    this.caseSensitive = caseSensitive
+  }
+
+  _parse(input: unknown, path: Issue["path"]): Issue[] | InferObjectShape<T> & Record<string, unknown> {
+    if (typeof input !== "object" || input === null || Array.isArray(input)) {
+      return [{ path, message: "Expected object" }]
+    }
+
+    const issues: Issue[] = []
+    const result: Record<string, unknown> = {}
+    const inputRecord = input as Record<string, unknown>
+
+    // Create a map for case-insensitive lookup if needed
+    const inputKeysMap = new Map<string, string>()
+    if (!this.caseSensitive) {
+      for (const key in inputRecord) {
+        inputKeysMap.set(key.toLowerCase(), key)
+      }
+    }
+
+    // Track which keys from input have been processed
+    const processedKeys = new Set<string>()
+
+    // Validate each field in the shape
+    for (const key in this.shape) {
+      const fieldSchema = this.shape[key]
+      let fieldValue: unknown
+      let originalKey: string = key
+
+      if (this.caseSensitive) {
+        fieldValue = inputRecord[key]
+        processedKeys.add(key)
+      } else {
+        const lowerKey = key.toLowerCase()
+        const foundKey = inputKeysMap.get(lowerKey)
+        if (foundKey) {
+          fieldValue = inputRecord[foundKey]
+          originalKey = foundKey
+          processedKeys.add(foundKey)
+        } else {
+          fieldValue = undefined
+        }
+      }
+
+      const fieldPath = [...path, key]
+      const fieldResult = fieldSchema._parse(fieldValue, fieldPath)
+
+      if (Array.isArray(fieldResult) && fieldResult.length > 0 &&
+          typeof fieldResult[0] === 'object' && fieldResult[0] !== null &&
+          'path' in fieldResult[0] && 'message' in fieldResult[0]) {
+        issues.push(...fieldResult)
+      } else {
+        result[key] = fieldResult
+      }
+    }
+
+    // Add extra keys that weren't in the schema (passthrough)
+    for (const key in inputRecord) {
+      if (!processedKeys.has(key)) {
+        result[key] = inputRecord[key]
+      }
+    }
+
+    if (issues.length > 0) {
+      return issues
+    }
+
+    return result as InferObjectShape<T> & Record<string, unknown>
+  }
+
+  protected _clone(): PassthroughObjectSchema<T> {
+    const cloned = new PassthroughObjectSchema(this.shape, this.caseSensitive)
+    cloned._asyncValidators = [...this._asyncValidators]
+    return cloned
+  }
+}
+
+/**
+ * ObjectSchema that explicitly strips extra keys (same as default behavior).
+ */
+class StripObjectSchema<T extends ObjectShape> extends ObjectSchema<T> {
+  constructor(shape: T, caseSensitive: boolean = true) {
+    super(shape)
+    this.caseSensitive = caseSensitive
+  }
+
+  protected _clone(): StripObjectSchema<T> {
+    const cloned = new StripObjectSchema(this.shape, this.caseSensitive)
+    cloned._asyncValidators = [...this._asyncValidators]
+    return cloned
+  }
 }
 
 class StrictObjectSchema<T extends ObjectShape> extends ObjectSchema<T> {
