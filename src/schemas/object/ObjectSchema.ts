@@ -147,6 +147,62 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
     }
     return new ObjectSchema(omittedShape as Omit<T, K>)
   }
+
+  /**
+   * Extend this schema with additional fields.
+   * New fields override existing fields with the same key.
+   *
+   * @param extension - Object shape to add to this schema
+   * @returns New ObjectSchema with combined fields
+   *
+   * @example
+   * ```typescript
+   * const baseSchema = k.object({ id: k.number() })
+   * const extendedSchema = baseSchema.extend({ name: k.string() })
+   * // Result: { id: number, name: string }
+   * ```
+   */
+  extend<E extends ObjectShape>(extension: E): ObjectSchema<Omit<T, keyof E> & E> {
+    const newShape = { ...this.shape, ...extension } as Omit<T, keyof E> & E
+    const newSchema = new ObjectSchema(newShape)
+    newSchema.caseSensitive = this.caseSensitive
+    return newSchema
+  }
+
+  /**
+   * Merge this schema with another ObjectSchema.
+   * Fields from the other schema override fields with the same key.
+   *
+   * @param other - Another ObjectSchema to merge with
+   * @returns New ObjectSchema with combined fields
+   *
+   * @example
+   * ```typescript
+   * const schemaA = k.object({ id: k.number(), name: k.string() })
+   * const schemaB = k.object({ email: k.email(), name: k.string().minLength(2) })
+   * const merged = schemaA.merge(schemaB)
+   * // Result: { id: number, name: string (with minLength), email: string }
+   * ```
+   */
+  merge<U extends ObjectShape>(other: ObjectSchema<U>): ObjectSchema<Omit<T, keyof U> & U> {
+    return this.extend(other.shape)
+  }
+
+  /**
+   * Get the raw shape of this schema (useful for spreading into new schemas).
+   *
+   * @example
+   * ```typescript
+   * const baseSchema = k.object({ id: k.number() })
+   * const newSchema = k.object({
+   *   ...baseSchema.getShape(),
+   *   name: k.string()
+   * })
+   * ```
+   */
+  getShape(): T {
+    return this.shape
+  }
 }
 
 class StrictObjectSchema<T extends ObjectShape> extends ObjectSchema<T> {

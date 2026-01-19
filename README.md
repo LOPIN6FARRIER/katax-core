@@ -11,10 +11,14 @@ A lightweight and extensible schema validation library for TypeScript/JavaScript
 
 - **Type-safe validation** with full TypeScript support
 - **Comprehensive schemas**: String, Number, Object, Array, Date, Email, Base64, File
+- **Union & Intersection schemas** - combine schemas flexibly
+- **Extend & Merge** - compose object schemas easily
+- **Custom schemas** - create your own validation logic
 - **Async validation support** - validate against databases, APIs, and external services
 - **Chaining API** for clean and readable validation rules
 - **Multiple error reporting** - get all validation errors at once
 - **Transform support** - validate and transform data in one step
+- **Recursive schemas** - support for self-referencing types
 - **Zero dependencies** (except date-fns for date operations)
 - **Browser and Node.js** compatible
 
@@ -83,7 +87,33 @@ k.object({
   optional: k.number().optional(),
   withDefault: k.boolean().default(true)
 })
-.strict() // No extra properties allowed
+.strict()   // No extra properties allowed
+.partial()  // Make all fields optional
+.pick(['required'])  // Pick specific fields
+.omit(['optional'])  // Omit specific fields
+```
+
+#### Extend and Merge
+```typescript
+// Extend: add new fields to an existing schema
+const baseSchema = k.object({ id: k.number(), createdAt: k.string() });
+const userSchema = baseSchema.extend({
+  name: k.string(),
+  email: k.email()
+});
+// Result: { id: number, createdAt: string, name: string, email: string }
+
+// Merge: combine two object schemas
+const schemaA = k.object({ a: k.string() });
+const schemaB = k.object({ b: k.number() });
+const merged = schemaA.merge(schemaB);
+// Result: { a: string, b: number }
+
+// Using spread with getShape()
+const newSchema = k.object({
+  ...baseSchema.getShape(),
+  extra: k.boolean()
+});
 ```
 
 ### Array Schema
@@ -129,6 +159,135 @@ k.file()
   .image()
   .maxSize(1024 * 1024 * 5) // 5MB
   .extensions(['.jpg', '.png'])
+```
+
+### Union Schema
+```typescript
+// Value must match ONE of the schemas
+const stringOrNumber = k.union([k.string(), k.number()]);
+stringOrNumber.parse("hello"); // OK
+stringOrNumber.parse(42);      // OK
+stringOrNumber.parse(true);    // Error
+
+// Discriminated unions (great for APIs)
+const catSchema = k.object({
+  type: k.literal('cat'),
+  meow: k.boolean()
+});
+const dogSchema = k.object({
+  type: k.literal('dog'),
+  bark: k.boolean()
+});
+const animalSchema = k.union([catSchema, dogSchema]);
+```
+
+### Intersection Schema
+```typescript
+// Value must match ALL schemas
+const withId = k.object({ id: k.number() });
+const withName = k.object({ name: k.string() });
+const withEmail = k.object({ email: k.email() });
+
+const combined = k.intersection([withId, withName, withEmail]);
+// Must have: id, name, AND email
+```
+
+### Literal and Enum
+```typescript
+// Exact value matching
+const active = k.literal('active');
+active.parse('active');    // OK
+active.parse('inactive');  // Error
+
+// String enum (union of literals)
+const status = k.enum(['pending', 'active', 'completed']);
+type Status = kataxInfer<typeof status>; // 'pending' | 'active' | 'completed'
+```
+
+### Tuple Schema
+```typescript
+// Fixed-length array with specific types per position
+const point2d = k.tuple([k.number(), k.number()]);
+point2d.parse([1, 2]);     // OK: [number, number]
+point2d.parse([1, 2, 3]);  // Error: wrong length
+
+const mixed = k.tuple([k.string(), k.number(), k.boolean()]);
+mixed.parse(['hello', 42, true]); // OK
+```
+
+### Record Schema
+```typescript
+// Object with dynamic keys and uniform value type
+const scores = k.record(k.number());
+scores.parse({ alice: 100, bob: 85 }); // OK
+
+const userMap = k.record(k.object({
+  name: k.string(),
+  age: k.number()
+}));
+```
+
+### Custom Schema
+```typescript
+// Create your own validation logic
+const positiveEven = k.custom<number>((value, path) => {
+  if (typeof value !== 'number') {
+    return [{ path, message: 'Expected number' }];
+  }
+  if (value <= 0 || value % 2 !== 0) {
+    return [{ path, message: 'Expected positive even number' }];
+  }
+  return value;
+});
+
+// Add refinements
+const customWithRefine = k.custom<string>((value, path) => {
+  if (typeof value !== 'string') {
+    return [{ path, message: 'Expected string' }];
+  }
+  return value;
+}).refine(
+  val => val.length >= 3,
+  'Must be at least 3 characters'
+);
+```
+
+### Lazy Schema (Recursive Types)
+```typescript
+// For self-referencing/recursive types
+interface TreeNode {
+  value: string;
+  children: TreeNode[];
+}
+
+const treeSchema: ReturnType<typeof k.lazy<TreeNode>> = k.lazy(() =>
+  k.object({
+    value: k.string(),
+    children: k.array(treeSchema)
+  })
+);
+
+treeSchema.parse({
+  value: 'root',
+  children: [
+    { value: 'child1', children: [] },
+    { value: 'child2', children: [
+      { value: 'grandchild', children: [] }
+    ]}
+  ]
+});
+```
+
+### Any, Unknown, Never
+```typescript
+// Accept any value (use with caution)
+const anything = k.any();
+
+// Accept any value but type as unknown (safer)
+const data = k.unknown();
+
+// Never matches - useful for exhaustive checks
+const impossible = k.never();
 ```
 
 ## 🔄 Transforms
@@ -243,6 +402,101 @@ if (validation.valid) {
 }
 ```
 
+## 🎯 Real-World Examples
+
+### API Schema Composition
+```typescript
+import { k, kataxInfer } from 'katax-core';
+
+// Base schemas for reuse
+const timestampFields = k.object({
+  createdAt: k.string(),
+  updatedAt: k.string()
+});
+
+const idField = k.object({
+  id: k.number()
+});
+
+// Compose user schema
+const userSchema = idField
+  .extend(timestampFields.getShape())
+  .extend({
+    name: k.string().minLength(2),
+    email: k.email(),
+    role: k.enum(['admin', 'user', 'guest'])
+  });
+
+type User = kataxInfer<typeof userSchema>;
+// { id: number, createdAt: string, updatedAt: string, name: string, email: string, role: 'admin' | 'user' | 'guest' }
+
+// Create post schema that extends base
+const postSchema = idField
+  .extend(timestampFields.getShape())
+  .extend({
+    title: k.string().minLength(5),
+    content: k.string(),
+    author: userSchema,
+    tags: k.array(k.string()),
+    status: k.enum(['draft', 'published', 'archived'])
+  });
+
+type Post = kataxInfer<typeof postSchema>;
+```
+
+### Form Validation with Dynamic Fields
+```typescript
+const formFieldSchema = k.object({
+  type: k.enum(['text', 'number', 'email', 'select']),
+  label: k.string(),
+  required: k.boolean().optional(),
+  value: k.union([k.string(), k.number(), k.boolean()]).nullable()
+});
+
+const formSchema = k.object({
+  id: k.string(),
+  fields: k.record(formFieldSchema)
+});
+
+formSchema.parse({
+  id: 'contact-form',
+  fields: {
+    name: { type: 'text', label: 'Name', required: true, value: 'John' },
+    age: { type: 'number', label: 'Age', value: 25 },
+    email: { type: 'email', label: 'Email', value: null }
+  }
+});
+```
+
+### Discriminated Union for API Responses
+```typescript
+const successResponse = k.object({
+  success: k.literal(true),
+  data: k.object({
+    id: k.number(),
+    name: k.string()
+  })
+});
+
+const errorResponse = k.object({
+  success: k.literal(false),
+  error: k.object({
+    code: k.number(),
+    message: k.string()
+  })
+});
+
+const apiResponse = k.union([successResponse, errorResponse]);
+
+// Type-safe handling
+const result = apiResponse.parse(response);
+if (result.success) {
+  console.log(result.data.name); // TypeScript knows data exists
+} else {
+  console.log(result.error.message); // TypeScript knows error exists
+}
+```
+
 ## 📋 Error Handling
 
 Katax returns all validation errors at once:
@@ -310,6 +564,20 @@ export type CreateProjectData = kataxInfer<typeof createProjectSchema>;
 
 ## 🔄 Changelog
 
+### v1.2.0
+- ✨ **NEW**: Union schemas with `k.union()` - validate against multiple possible types
+- ✨ **NEW**: Intersection schemas with `k.intersection()` - combine schemas that must all match
+- ✨ **NEW**: Object schema methods: `.extend()`, `.merge()`, `.getShape()`
+- ✨ **NEW**: Literal schema with `k.literal()` - exact value matching
+- ✨ **NEW**: Enum schema with `k.enum()` - string literal unions
+- ✨ **NEW**: Tuple schema with `k.tuple()` - fixed-length typed arrays
+- ✨ **NEW**: Record schema with `k.record()` - objects with uniform value types
+- ✨ **NEW**: Custom schema with `k.custom()` - create your own validation logic
+- ✨ **NEW**: Lazy schema with `k.lazy()` - recursive/self-referencing types
+- ✨ **NEW**: Utility types: `k.any()`, `k.unknown()`, `k.never()`
+- ⚡ Performance optimizations with helper utilities
+- 📚 Comprehensive documentation and examples
+
 ### v1.1.0
 - ✨ **NEW**: Async validation support with `.asyncRefine()`
 - ✨ **NEW**: Async methods: `.safeParseAsync()`, `.parseAsync()`, `.isValidAsync()`
@@ -339,10 +607,14 @@ A: Yes, most validation methods accept an optional custom error message paramete
 ## 🏗️ Roadmap
 
 - [x] Async validation support
-- [ ] Union and intersection schemas
-- [ ] Custom schema creation helpers
-- [ ] Performance optimizations
+- [x] Union and intersection schemas
+- [x] Custom schema creation helpers
+- [x] Performance optimizations
+- [x] Extend and merge for object schemas
+- [x] Recursive schemas with lazy evaluation
 - [ ] Plugin system
+- [ ] Coercion (auto-convert types)
+- [ ] i18n support for error messages
 
 ## 🐛 Issues & Support
 

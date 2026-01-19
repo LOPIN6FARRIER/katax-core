@@ -60,7 +60,9 @@
     "test:new-schemas-demo": "tsx src/test/new-schemas-demo.test.ts",
     "test:base64": "tsx src/test/base64.test.ts",
     "test:email": "tsx src/test/email.test.ts",
-    "test:file": "tsx src/test/file.test.ts"
+    "test:file": "tsx src/test/file.test.ts",
+    "test:union": "tsx src/test/union-intersection.test.ts",
+    "test:custom": "tsx src/test/custom-schemas.test.ts"
   },
   "devDependencies": {
     "eslint": "^9.39.2",
