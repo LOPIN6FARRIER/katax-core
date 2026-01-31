@@ -10,6 +10,9 @@ dist/
 build/
 out/
 
+# npm pack tarballs
+*.tgz
+
 # Runtime data
 pids
 *.pid
