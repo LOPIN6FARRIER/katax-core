@@ -66,6 +66,8 @@
     "test:coerce": "tsx src/test/coerce-preprocess.test.ts"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.1.0",
     "eslint": "^9.39.2",
     "prettier": "^3.7.4",
     "tsup": "^8.5.1",

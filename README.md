@@ -157,12 +157,56 @@ k.base64()
   .mimeType('image/png')
 ```
 
-### File Schema (Browser)
+### File Schema (Browser & Node.js)
 ```typescript
+// Works in both browser (File API) and Node.js (Multer)
 k.file()
   .image()
   .maxSize(1024 * 1024 * 5) // 5MB
   .extensions(['.jpg', '.png'])
+
+// Node.js with Multer (Express)
+import { k } from 'katax-core';
+import multer from 'multer';
+
+const upload = multer({ storage: multer.memoryStorage() });
+
+app.post('/upload', upload.single('file'), async (req, res) => {
+  const schema = k.object({
+    title: k.string(),
+    file: k.file()
+      .maxSize(10 * 1024 * 1024)
+      .image()
+      .extensions(['jpg', 'png', 'webp'])
+  });
+  
+  const result = schema.safeParse({ 
+    ...req.body, 
+    file: req.file  // Multer file works directly!
+  });
+  
+  if (result.success) {
+    // result.data.file has: buffer, originalname, mimetype, size, etc.
+    res.json({ message: 'Valid file', data: result.data });
+  } else {
+    res.status(400).json({ errors: result.issues });
+  }
+});
+
+// Available validators work in both environments:
+k.file()
+  .maxSize(bytes)                    // Max file size
+  .minSize(bytes)                    // Min file size
+  .type('image/jpeg')                // Exact MIME type
+  .types(['image/jpeg', 'image/png']) // Multiple types
+  .typePattern('image/*')            // Pattern matching
+  .extension('.jpg')                 // Single extension
+  .extensions(['.jpg', '.png'])      // Multiple extensions
+  .namePattern(/^[a-z0-9-]+$/)      // Filename regex
+  .image()                           // Shortcut for image/*
+  .video()                           // Shortcut for video/*
+  .audio()                           // Shortcut for audio/*
+  .document()                        // PDF, Word, Excel, etc.
 ```
 
 ### Union Schema
