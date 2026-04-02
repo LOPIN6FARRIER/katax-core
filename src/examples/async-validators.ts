@@ -88,15 +88,20 @@ export const domainValidator: AsyncValidator<string> = async (email, path) => {
 /**
  * Example: File virus scanning validator
  */
-export const antivirusValidator: AsyncValidator<File> = async (file, path) => {
+export const antivirusValidator: AsyncValidator<unknown> = async (file, path) => {
   // Simulate virus scanning
   await new Promise(resolve => setTimeout(resolve, 500))
   
   // Simulate dangerous file patterns
   const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr']
-  const fileName = file.name.toLowerCase()
+  const fileName =
+    typeof file === "object" && file !== null
+      ? ((file as { name?: string; originalname?: string }).name ??
+        (file as { name?: string; originalname?: string }).originalname ?? "")
+      : ""
+  const normalizedName = fileName.toLowerCase()
   
-  const isDangerous = dangerousExtensions.some(ext => fileName.endsWith(ext))
+  const isDangerous = dangerousExtensions.some(ext => normalizedName.endsWith(ext))
   
   if (isDangerous) {
     return [{

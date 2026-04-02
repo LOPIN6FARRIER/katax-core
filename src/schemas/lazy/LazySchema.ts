@@ -56,4 +56,8 @@ export class LazySchema<T> extends BaseSchema<T> {
     }
     return []
   }
+
+  protected _hasAsyncValidationNested(): boolean {
+    return this.getSchema().hasAsyncValidation()
+  }
 }

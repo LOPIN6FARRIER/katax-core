@@ -106,6 +106,10 @@ export class ArraySchema<T> extends BaseSchema<T[]> {
     return allIssues
   }
 
+  protected _hasAsyncValidationNested(): boolean {
+    return this.elementSchema?.hasAsyncValidation() ?? false
+  }
+
   minLength(min: number, message?: string): this {
     this.rules.push({
       check: (value) => value.length >= min,

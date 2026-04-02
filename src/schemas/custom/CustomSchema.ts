@@ -299,6 +299,10 @@ export class TupleSchema<T extends [BaseSchema<any>, ...BaseSchema<any>[]]> exte
 
     return allIssues
   }
+
+  protected _hasAsyncValidationNested(): boolean {
+    return this.schemas.some((schema) => schema.hasAsyncValidation())
+  }
 }
 
 /**
@@ -376,5 +380,9 @@ export class RecordSchema<V extends BaseSchema<any>> extends BaseSchema<Record<s
     }
 
     return allIssues
+  }
+
+  protected _hasAsyncValidationNested(): boolean {
+    return this.valueSchema.hasAsyncValidation()
   }
 }

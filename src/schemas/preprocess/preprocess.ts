@@ -42,6 +42,10 @@ export class PreprocessSchema<T> extends BaseSchema<T> {
     }
     return []
   }
+
+  protected _hasAsyncValidationNested(): boolean {
+    return this._schema.hasAsyncValidation()
+  }
 }
 
 /**

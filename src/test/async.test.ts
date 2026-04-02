@@ -34,10 +34,16 @@ const usernameValidator: AsyncValidator<string> = async (username, path) => {
   return []
 }
 
-const fileValidator: AsyncValidator<File> = async (file, path) => {
+const fileValidator: AsyncValidator<unknown> = async (file, path) => {
   await new Promise(resolve => setTimeout(resolve, 10))
-  
-  if (file.name.endsWith('.exe')) {
+
+  const fileName =
+    typeof file === "object" && file !== null
+      ? ((file as { name?: string; originalname?: string }).name ??
+        (file as { name?: string; originalname?: string }).originalname ?? "")
+      : ""
+
+  if (fileName.endsWith('.exe')) {
     return [{
       path,
       message: "Executable files are not allowed"

@@ -108,6 +108,15 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
     return allIssues
   }
 
+  protected _hasAsyncValidationNested(): boolean {
+    for (const key in this.shape) {
+      if (this.shape[key].hasAsyncValidation()) {
+        return true
+      }
+    }
+    return false
+  }
+
   // Method to set case sensitivity
   caseInsensitive(): this {
     this.caseSensitive = false

@@ -1,15 +1,10 @@
 // src/core/AsyncResult.ts
 
-export interface AsyncSafeParseResult<T> {
-  success: boolean
-  data?: T
-  issues?: Issue[]
-}
+import type { Issue } from "./result"
 
-export interface Issue {
-  path: (string | number)[]
-  message: string
-}
+export type AsyncSafeParseResult<T> =
+  | { success: true; data: T }
+  | { success: false; issues: Issue[] }
 
 export interface AsyncValidationResult {
   valid: boolean

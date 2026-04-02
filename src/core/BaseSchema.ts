@@ -74,6 +74,13 @@ export abstract class BaseSchema<T> implements Schema<T> {
     }
   }
 
+  /**
+   * Returns true when this schema or any nested schema needs async validation.
+   */
+  hasAsyncValidation(): boolean {
+    return this._asyncValidators.length > 0 || this._hasAsyncValidationNested()
+  }
+
   optional(): OptionalSchema<T> {
     return new OptionalSchema(this)
   }
@@ -139,9 +146,9 @@ export abstract class BaseSchema<T> implements Schema<T> {
   async parseAsync(input: unknown): Promise<T> {
     const result = await this.safeParseAsync(input)
     if (!result.success) {
-      throw new KataxError(result.issues!)
+      throw new KataxError(result.issues)
     }
-    return result.data!
+    return result.data
   }
 
   /**
@@ -152,7 +159,7 @@ export abstract class BaseSchema<T> implements Schema<T> {
    */
   async isValidAsync(input: unknown): Promise<AsyncValidationResult> {
     const result = await this.safeParseAsync(input)
-    return { valid: result.success, issues: result.issues || [] }
+    return { valid: result.success, issues: result.success ? [] : result.issues }
   }
 
   /**
@@ -166,6 +173,14 @@ export abstract class BaseSchema<T> implements Schema<T> {
   protected async _parseAsyncNested(value: T, path: Issue["path"]): Promise<Issue[]> {
     // Base implementation - no nested async validation
     return []
+  }
+
+  /**
+   * Reports whether nested schemas require async validation.
+   * Override in composed schemas that wrap other schemas.
+   */
+  protected _hasAsyncValidationNested(): boolean {
+    return false
   }
 
   /**
@@ -243,6 +258,10 @@ class OptionalSchema<T> extends BaseSchema<T | undefined> {
     
     return []
   }
+
+  protected _hasAsyncValidationNested(): boolean {
+    return this.schema.hasAsyncValidation()
+  }
 }
 
 class NullableSchema<T> extends BaseSchema<T | null> {
@@ -280,6 +299,10 @@ class NullableSchema<T> extends BaseSchema<T | null> {
     
     return []
   }
+
+  protected _hasAsyncValidationNested(): boolean {
+    return this.schema.hasAsyncValidation()
+  }
 }
 
 class DefaultSchema<T> extends BaseSchema<T> {
@@ -312,6 +335,10 @@ class DefaultSchema<T> extends BaseSchema<T> {
     }
     
     return []
+  }
+
+  protected _hasAsyncValidationNested(): boolean {
+    return this.schema.hasAsyncValidation()
   }
 
   private cloneValue(value: T): T {
@@ -366,6 +393,10 @@ class TransformSchema<T, U> extends BaseSchema<U> {
     // The original schema's async validation should have been run during sync parsing
     return []
   }
+
+  protected _hasAsyncValidationNested(): boolean {
+    return this.schema.hasAsyncValidation()
+  }
 }
 
 /**
@@ -399,6 +430,10 @@ export class CatchSchema<T> extends BaseSchema<T> {
   protected async _parseAsyncNested(value: T, path: Issue["path"]): Promise<Issue[]> {
     // For catch schemas, async errors are also caught
     return []
+  }
+
+  protected _hasAsyncValidationNested(): boolean {
+    return this._innerSchema.hasAsyncValidation()
   }
 
   private _cloneValue(value: T): T {

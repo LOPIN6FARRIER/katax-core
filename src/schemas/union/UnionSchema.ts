@@ -74,4 +74,8 @@ export class UnionSchema<T extends BaseSchema<any>[]> extends BaseSchema<UnionTo
     }
     return []
   }
+
+  protected _hasAsyncValidationNested(): boolean {
+    return this.schemas.some((schema) => schema.hasAsyncValidation())
+  }
 }

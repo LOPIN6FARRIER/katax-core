@@ -78,4 +78,8 @@ export class IntersectionSchema<T extends BaseSchema<any>[]> extends BaseSchema<
 
     return allIssues
   }
+
+  protected _hasAsyncValidationNested(): boolean {
+    return this.schemas.some((schema) => schema.hasAsyncValidation())
+  }
 }
