@@ -1,6 +1,6 @@
 {
   "name": "katax-core",
-  "version": "1.5.3",
+  "version": "1.5.4",
   "description": "Lightweight and extensible schema validation library for TypeScript/JavaScript",
   "keywords": [
     "validation",
