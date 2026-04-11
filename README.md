@@ -868,4 +868,14 @@ npm run build
 
 ---
 
+## 🌐 Katax Ecosystem
+
+| Package | npm | GitHub | DeepWiki |
+|---------|-----|--------|----------|
+| **katax-core** | [npm](https://www.npmjs.com/package/katax-core) | [GitHub](https://github.com/LOPIN6FARRIER/katax-core) | [DeepWiki](https://deepwiki.com/LOPIN6FARRIER/katax-core) |
+| **katax-service-manager** | [npm](https://www.npmjs.com/package/katax-service-manager) | [GitHub](https://github.com/LOPIN6FARRIER/katax-service-manager) | [DeepWiki](https://deepwiki.com/LOPIN6FARRIER/katax-service-manager) |
+| **katax-cli** | [npm](https://www.npmjs.com/package/katax-cli) | [GitHub](https://github.com/LOPIN6FARRIER/katax-cli) | [DeepWiki](https://deepwiki.com/LOPIN6FARRIER/katax-cli) |
+
+---
+
 Made with ❤️ by Vinicio Esparza
