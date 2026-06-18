@@ -7,37 +7,36 @@
 
 A lightweight and extensible schema validation library for TypeScript/JavaScript.
 
-## 🚀 Features
+## Features
 
 - **Type-safe validation** with full TypeScript support
-- **Comprehensive schemas**: String, Number, Object, Array, Date, Email, Base64, File
+- **Comprehensive schemas**: String, Number, Boolean, Object, Array, Date, Email, Base64, File, TwoDates
 - **Union & Intersection schemas** - combine schemas flexibly
 - **Extend & Merge** - compose object schemas easily
 - **Custom schemas** - create your own validation logic
 - **Type coercion** - auto-convert strings to numbers, booleans, dates
 - **Preprocess** - transform input before validation
 - **Catch/Fallback** - error recovery with default values
-- **Passthrough/Strip** - control extra object properties
+- **Passthrough/Strip/Strict** - control extra object properties
 - **Async validation support** - validate against databases, APIs, and external services
 - **Chaining API** for clean and readable validation rules
 - **Multiple error reporting** - get all validation errors at once
 - **Transform support** - validate and transform data in one step
 - **Recursive schemas** - support for self-referencing types
-- **Zero dependencies** (except date-fns for date operations)
+- **Zero dependencies**
 - **Browser and Node.js** compatible
 
-## 📦 Installation
+## Installation
 
 ```bash
 npm install katax-core
 ```
 
-## 🔥 Quick Start
+## Quick Start
 
 ```typescript
 import { k } from 'katax-core';
 
-// Basic validation
 const userSchema = k.object({
   name: k.string().minLength(2),
   email: k.string().email(),
@@ -59,202 +58,258 @@ if (result.success) {
 }
 ```
 
-## 📚 Schema Types
+## Schema Types
+
+All schemas expose the standard `Schema<T>` interface with `parse`, `safeParse`, `validate`, `parseAsync`, `safeParseAsync`, `isValidAsync`, and `hasAsyncValidation` methods.
 
 ### String Schema
+
 ```typescript
 k.string()
-  .minLength(3)
-  .maxLength(50)
-  .email()
-  .url()
-  .regex(/^[a-zA-Z]+$/)
-  .oneOf(['admin', 'user'])
-  .notOneOf(['banned'])
+  .minLength(3)         .maxLength(50)
+  .length(10)           .lowercase()
+  .uppercase()          .alpha()
+  .alphanumeric()       .ascii()
+  .uuid()               .ip()
+  .noWhitespace()       .nonempty()
+  .email()              .url()
+  .regex(/^[a-z]+$/)    .startsWith('prefix')
+  .endsWith('suffix')   .includes('substring')
+  .oneOf(['a', 'b'])    .notOneOf(['c', 'd'])
+  .trim()               // no message parameter
 ```
+
+- `.minLength(n, msg?)`, `.maxLength(n, msg?)`, `.length(n, msg?)`
+- `.lowercase(msg?)`, `.uppercase(msg?)`
+- `.alpha(msg?)`, `.alphanumeric(msg?)`, `.ascii(msg?)`
+- `.uuid(msg?)`, `.ip(msg?)`
+- `.noWhitespace(msg?)`, `.nonempty(msg?)`
+- `.email(msg?)`, `.url(msg?)`
+- `.regex(pattern, msg?)`
+- `.startsWith(s, msg?)`, `.endsWith(s, msg?)`, `.includes(s, msg?)`
+- `.oneOf(arr, msg?)`, `.notOneOf(arr, msg?)`
+- `.trim()` - does not accept a message parameter
 
 ### Number Schema
+
 ```typescript
 k.number()
-  .min(0)
-  .max(100)
-  .positive()
-  .integer()
-  .multipleOf(5)
-  .finite()
+  .min(0)               .max(100)
+  .length(3)            .nonempty()
+  .positive()           .negative()
+  .finite()             .integer()
+  .multipleOf(5)        .notEqual(0)
+  .between(10, 20)      .greaterThan(5)
+  .lessThan(100)        .oneOf([1, 2, 3])
+  .notOneOf([-1, -2])
 ```
 
+- `.min(n, msg?)`, `.max(n, msg?)`, `.length(n, msg?)`
+- `.nonempty(msg?)`, `.positive(msg?)`, `.negative(msg?)`
+- `.finite(msg?)`, `.integer(msg?)`
+- `.multipleOf(n, msg?)`, `.notEqual(n, msg?)`
+- `.between(min, max, msg?)`, `.greaterThan(n, msg?)`, `.lessThan(n, msg?)`
+- `.oneOf(arr, msg?)`, `.notOneOf(arr, msg?)`
+
+### Boolean Schema
+
+```typescript
+k.boolean()
+  .isTrue()      // must be true
+  .isFalse()     // must be false
+  .equals(true)  // must equal given boolean
+```
+
+- `.isTrue(msg?)`, `.isFalse(msg?)`, `.equals(bool, msg?)`
+
 ### Object Schema
+
 ```typescript
 k.object({
   required: k.string(),
   optional: k.number().optional(),
   withDefault: k.boolean().default(true)
 })
-.strict()   // No extra properties allowed
-.partial()  // Make all fields optional
-.pick(['required'])  // Pick specific fields
-.omit(['optional'])  // Omit specific fields
+  .strict()         // reject extra keys
+  .partial()        // make all fields optional
+  .pick(['key'])    // keep only specified keys
+  .omit(['key'])    // remove specified keys
+  .passthrough()    // keep extra keys
+  .strip()          // remove extra keys (default)
+  .caseInsensitive()
 ```
 
-#### Extend and Merge
+**Object behavior:**
+- By default, objects **strip** extra keys without error
+- `.passthrough()` keeps extra keys in the output
+- `.strict()` rejects extra keys with validation errors
+- `.strip()` explicitly strips extra keys (same as default)
+
+**Extend and Merge:**
 ```typescript
-// Extend: add new fields to an existing schema
 const baseSchema = k.object({ id: k.number(), createdAt: k.string() });
 const userSchema = baseSchema.extend({
   name: k.string(),
   email: k.email()
 });
-// Result: { id: number, createdAt: string, name: string, email: string }
 
-// Merge: combine two object schemas
 const schemaA = k.object({ a: k.string() });
 const schemaB = k.object({ b: k.number() });
 const merged = schemaA.merge(schemaB);
-// Result: { a: string, b: number }
 
-// Using spread with getShape()
+// Use getShape() for spread composition
 const newSchema = k.object({
   ...baseSchema.getShape(),
   extra: k.boolean()
 });
 ```
 
+- `.extend(extension)` - add fields to schema
+- `.merge(other)` - combine with another object schema
+- `.getShape()` - get the shape definition object
+- `.caseInsensitive()` - case-insensitive key matching
+
 ### Array Schema
+
 ```typescript
 k.array(k.string())
   .minLength(1)
   .maxLength(10)
+  .length(5)
+  .notEmpty()
   .unique()
   .contains('required-item')
 ```
 
+- `.minLength(n, msg?)`, `.maxLength(n, msg?)`, `.length(n, msg?)`
+- `.notEmpty(msg?)`, `.unique(msg?)`
+- `.contains(element, msg?)`
+
 ### Date Schema
+
 ```typescript
 k.date()
-  .min('2024-01-01')
-  .max('2024-12-31')
-  .isFuture()
-  .isPast()
-  .format('yyyy-MM-dd')
+  .min('2024-01-01')          .max('2024-12-31')
+  .between('2024-01', '2024-06')
+  .isFuture()                  .isPast()
+  .format('yyyy-MM-dd')        .isDateOnly()
+  .hasTime()                   .formatOutput('dd/MM/yyyy')
 ```
 
+- `.min(dateStr, msg?)`, `.max(dateStr, msg?)`, `.between(start, end, msg?)`
+- `.isFuture(msg?)`, `.isPast(msg?)`
+- `.format(formatStr, msg?)` - validate date format
+- `.isDateOnly(msg?)` - no time component
+- `.hasTime(msg?)` - must include time
+- `.formatOutput(formatStr)` - transforms output type to `string`
+
 ### Email Schema
+
 ```typescript
 k.email()
-  .domain('company.com')
-  .domainPattern('*.company.com')
-  .corporate() // No free email providers
-  .noPlus() // No plus addressing
+  .domain('company.com')              .domains(['company.com', 'org.com'])
+  .domainPattern('*.company.com')     .notDomains(['spam.com'])
+  .localMinLength(3)                  .localMaxLength(64)
+  .localPattern(/^[a-z]+/)           .corporate()
+  .noPlus()                           .noDots()
+```
+
+- `.domain(d, msg?)` - require specific domain
+- `.domains(arr, msg?)` - allow only listed domains
+- `.domainPattern(pattern, msg?)` - domain regex pattern
+- `.notDomains(arr, msg?)` - reject listed domains
+- `.localMinLength(n, msg?)`, `.localMaxLength(n, msg?)`
+- `.localPattern(regex, msg?)` - local part regex
+- `.corporate(msg?)` - no free email providers
+- `.noPlus(msg?)` - no plus addressing
+- `.noDots(msg?)` - no dots in local part
+
+### File Schema (Browser & Node.js)
+
+```typescript
+k.file()
+  .maxSize(1024 * 1024 * 5)     // 5MB
+  .minSize(1024)                 // 1KB
+  .type('image/jpeg')            // exact MIME type
+  .types(['image/jpeg', 'image/png'])
+  .typePattern('image/*')        // pattern matching
+  .extension('.jpg')             // single extension
+  .extensions(['.jpg', '.png'])  // multiple extensions
+  .namePattern(/^[a-z0-9-]+$/)  // filename regex
+  .image()                       // shortcut for image/*
+  .video()                       // shortcut for video/*
+  .audio()                       // shortcut for audio/*
+  .document()                    // PDF, Word, Excel, etc.
 ```
 
 ### Base64 Schema
+
 ```typescript
 k.base64()
-  .dataUrl()
-  .image()
-  .maxDecodedSize(1024 * 1024) // 1MB
-  .mimeType('image/png')
+  .minDecodedSize(1024)          .maxDecodedSize(1024 * 1024)
+  .mimeType('image/png')         .mimeTypePattern('image/*')
+  .image()                       .pdf()
+  .json()                        .dataUrl()
 ```
 
-### File Schema (Browser & Node.js)
+- `.minDecodedSize(bytes, msg?)`, `.maxDecodedSize(bytes, msg?)`
+- `.mimeType(type, msg?)`, `.mimeTypePattern(p, msg?)`
+- `.image(msg?)`, `.pdf(msg?)`, `.json(msg?)`, `.dataUrl(msg?)`
+
+### TwoDates Schema
+
 ```typescript
-// Works in both browser (File API) and Node.js (Multer)
-k.file()
-  .image()
-  .maxSize(1024 * 1024 * 5) // 5MB
-  .extensions(['.jpg', '.png'])
-
-// Node.js with Multer (Express)
-import { k } from 'katax-core';
-import multer from 'multer';
-
-const upload = multer({ storage: multer.memoryStorage() });
-
-app.post('/upload', upload.single('file'), async (req, res) => {
-  const schema = k.object({
-    title: k.string(),
-    file: k.file()
-      .maxSize(10 * 1024 * 1024)
-      .image()
-      .extensions(['jpg', 'png', 'webp'])
-  });
-  
-  const result = schema.safeParse({ 
-    ...req.body, 
-    file: req.file  // Multer file works directly!
-  });
-  
-  if (result.success) {
-    // result.data.file has: buffer, originalname, mimetype, size, etc.
-    res.json({ message: 'Valid file', data: result.data });
-  } else {
-    res.status(400).json({ errors: result.issues });
-  }
-});
-
-// Available validators work in both environments:
-k.file()
-  .maxSize(bytes)                    // Max file size
-  .minSize(bytes)                    // Min file size
-  .type('image/jpeg')                // Exact MIME type
-  .types(['image/jpeg', 'image/png']) // Multiple types
-  .typePattern('image/*')            // Pattern matching
-  .extension('.jpg')                 // Single extension
-  .extensions(['.jpg', '.png'])      // Multiple extensions
-  .namePattern(/^[a-z0-9-]+$/)      // Filename regex
-  .image()                           // Shortcut for image/*
-  .video()                           // Shortcut for video/*
-  .audio()                           // Shortcut for audio/*
-  .document()                        // PDF, Word, Excel, etc.
+k.twoDates('|')
+  .maxDifference(30)             .minDifference(7)
+  .maxDifferenceHours(48)        .minDifferenceHours(12)
+  .order(true)                   // ascending order
 ```
+
+Parses a string with two dates separated by a separator (default `'|'`), e.g. `"2024-01-01|2024-01-15"`.
+
+- `.maxDifference(days, msg?)` - max days between dates
+- `.minDifference(days, msg?)` - min days between dates
+- `.maxDifferenceHours(hours, msg?)` - max hours between dates
+- `.minDifferenceHours(hours, msg?)` - min hours between dates
+- `.order(ascending?, msg?)` - enforce date order (default ascending)
 
 ### Union Schema
+
 ```typescript
-// Value must match ONE of the schemas
 const stringOrNumber = k.union([k.string(), k.number()]);
 stringOrNumber.parse("hello"); // OK
 stringOrNumber.parse(42);      // OK
 stringOrNumber.parse(true);    // Error
 
-// Discriminated unions (great for APIs)
-const catSchema = k.object({
-  type: k.literal('cat'),
-  meow: k.boolean()
-});
-const dogSchema = k.object({
-  type: k.literal('dog'),
-  bark: k.boolean()
-});
+// Discriminated unions
+const catSchema = k.object({ type: k.literal('cat'), meow: k.boolean() });
+const dogSchema = k.object({ type: k.literal('dog'), bark: k.boolean() });
 const animalSchema = k.union([catSchema, dogSchema]);
 ```
 
 ### Intersection Schema
+
 ```typescript
-// Value must match ALL schemas
 const withId = k.object({ id: k.number() });
 const withName = k.object({ name: k.string() });
-const withEmail = k.object({ email: k.email() });
-
-const combined = k.intersection([withId, withName, withEmail]);
-// Must have: id, name, AND email
+const combined = k.intersection([withId, withName]);
+// Must have: id AND name
 ```
 
 ### Literal and Enum
+
 ```typescript
-// Exact value matching
 const active = k.literal('active');
 active.parse('active');    // OK
 active.parse('inactive');  // Error
 
-// String enum (union of literals)
 const status = k.enum(['pending', 'active', 'completed']);
 type Status = kataxInfer<typeof status>; // 'pending' | 'active' | 'completed'
 ```
 
 ### Tuple Schema
+
 ```typescript
-// Fixed-length array with specific types per position
 const point2d = k.tuple([k.number(), k.number()]);
 point2d.parse([1, 2]);     // OK: [number, number]
 point2d.parse([1, 2, 3]);  // Error: wrong length
@@ -264,8 +319,8 @@ mixed.parse(['hello', 42, true]); // OK
 ```
 
 ### Record Schema
+
 ```typescript
-// Object with dynamic keys and uniform value type
 const scores = k.record(k.number());
 scores.parse({ alice: 100, bob: 85 }); // OK
 
@@ -276,8 +331,8 @@ const userMap = k.record(k.object({
 ```
 
 ### Custom Schema
+
 ```typescript
-// Create your own validation logic
 const positiveEven = k.custom<number>((value, path) => {
   if (typeof value !== 'number') {
     return [{ path, message: 'Expected number' }];
@@ -300,9 +355,11 @@ const customWithRefine = k.custom<string>((value, path) => {
 );
 ```
 
+- `.refine(check: (value: T) => boolean, message: string | ((value: T) => string))`
+
 ### Lazy Schema (Recursive Types)
+
 ```typescript
-// For self-referencing/recursive types
 interface TreeNode {
   value: string;
   children: TreeNode[];
@@ -327,76 +384,98 @@ treeSchema.parse({
 ```
 
 ### Any, Unknown, Never
-```typescript
-// Accept any value (use with caution)
-const anything = k.any();
-
-// Accept any value but type as unknown (safer)
-const data = k.unknown();
-
-// Never matches - useful for exhaustive checks
-const impossible = k.never();
-```
-
-## 🔄 Type Coercion
-
-Automatically convert input types before validation:
 
 ```typescript
-// String to number
-const coercedNumber = k.coerce.number();
-coercedNumber.parse("123");    // 123
-coercedNumber.parse("45.67");  // 45.67
-coercedNumber.parse(true);     // 1
-coercedNumber.parse(false);    // 0
-
-// With validation rules
-const positiveInt = k.coerce.number().positive().integer();
-positiveInt.parse("42");       // 42
-positiveInt.parse("-5");       // Error: must be positive
-
-// String to boolean
-const coercedBoolean = k.coerce.boolean();
-coercedBoolean.parse("true");  // true
-coercedBoolean.parse("false"); // false
-coercedBoolean.parse("1");     // true
-coercedBoolean.parse("0");     // false
-coercedBoolean.parse("yes");   // true
-coercedBoolean.parse("no");    // false
-coercedBoolean.parse(1);       // true
-coercedBoolean.parse(0);       // false
-
-// Any to string
-const coercedString = k.coerce.string();
-coercedString.parse(123);      // "123"
-coercedString.parse(true);     // "true"
-coercedString.parse(null);     // ""
-
-// String/number to date
-const coercedDate = k.coerce.date();
-coercedDate.parse("2024-01-15");      // Date object
-coercedDate.parse(1705276800000);     // Date from timestamp
-coercedDate.parse(new Date());        // Passthrough
-
-// With date validation
-const futureDate = k.coerce.date().isFuture();
-const pastDate = k.coerce.date().isPast();
-const rangeDate = k.coerce.date().between('2024-01-01', '2024-12-31');
+const anything = k.any();     // accepts any value
+const data = k.unknown();     // accepts any value, typed as unknown
+const impossible = k.never(); // never matches
 ```
 
-## ⚙️ Preprocess
+## Common Modifiers
+
+All schemas support these chainable modifiers:
+
+```typescript
+k.string().optional()         // T | undefined
+k.string().nullable()         // T | null
+k.string().default('fallback') // return default if undefined
+k.string().transform(s => s.toUpperCase()) // transform output type
+k.string().catch('fallback')  // return fallback on validation failure
+```
+
+## Type Coercion
+
+Automatically convert input types before validation via `k.coerce.*`:
+
+### Coerced Number
+
+```typescript
+k.coerce.number()
+k.coerce.number().positive().integer()
+
+// Proxy methods: min, max, positive, negative, integer, finite,
+//                multipleOf, between, greaterThan, lessThan, oneOf, notOneOf
+
+k.coerce.number().parse("123");    // 123
+k.coerce.number().parse("45.67");  // 45.67
+```
+
+### Coerced Boolean
+
+```typescript
+k.coerce.boolean()
+k.coerce.boolean().isTrue()
+
+// Proxy methods: isTrue, isFalse, equals
+
+k.coerce.boolean().parse("true");   // true
+k.coerce.boolean().parse("false");  // false
+k.coerce.boolean().parse("1");      // true
+k.coerce.boolean().parse("0");      // false
+k.coerce.boolean().parse("yes");    // true
+k.coerce.boolean().parse("no");     // false
+k.coerce.boolean().parse(1);        // true
+k.coerce.boolean().parse(0);        // false
+```
+
+### Coerced String
+
+```typescript
+k.coerce.string()
+k.coerce.string().email().minLength(5)
+
+// Proxy methods: minLength, maxLength, email, url, regex, trim,
+//                lowercase, uppercase, oneOf, startsWith, endsWith, uuid
+
+k.coerce.string().parse(123);    // "123"
+k.coerce.string().parse(true);   // "true"
+k.coerce.string().parse(null);   // ""
+```
+
+### Coerced Date
+
+```typescript
+k.coerce.date()
+k.coerce.date().isFuture()
+
+// Proxy methods: min, max, between, isFuture, isPast
+
+k.coerce.date().parse("2024-01-15");     // Date object
+k.coerce.date().parse(1705276800000);    // Date from timestamp
+k.coerce.date().parse(new Date());       // passthrough
+```
+
+## Preprocess
 
 Transform input before validation:
 
 ```typescript
-// Trim and lowercase before validating
 const normalizedEmail = k.preprocess(
   (val) => typeof val === 'string' ? val.trim().toLowerCase() : val,
   k.string().email()
 );
-normalizedEmail.parse("  JOHN@EXAMPLE.COM  ");  // "john@example.com"
+normalizedEmail.parse("  JOHN@EXAMPLE.COM  "); // "john@example.com"
 
-// Parse JSON string to object
 const parseJSON = k.preprocess(
   (val) => {
     if (typeof val === 'string') {
@@ -405,55 +484,34 @@ const parseJSON = k.preprocess(
     }
     return val;
   },
-  k.object({
-    name: k.string(),
-    age: k.number()
-  })
+  k.object({ name: k.string(), age: k.number() })
 );
-parseJSON.parse('{"name":"John","age":30}');  // { name: "John", age: 30 }
-
-// Remove currency symbols before coercing
-const price = k.preprocess(
-  (val) => typeof val === 'string' ? val.replace(/[$,]/g, '').trim() : val,
-  k.coerce.number()
-);
-price.parse("$1,234.56");  // 1234.56
+parseJSON.parse('{"name":"John","age":30}'); // { name: "John", age: 30 }
 ```
 
-## 🔒 Catch/Fallback
+## Catch/Fallback
 
 Provide default values on validation failure:
 
 ```typescript
-// Basic catch - return default on error
 const stringWithDefault = k.string().catch("default value");
-stringWithDefault.parse("hello");     // "hello"
-stringWithDefault.parse(123);         // "default value" (number fails string validation)
-stringWithDefault.parse(null);        // "default value"
+stringWithDefault.parse("hello");    // "hello"
+stringWithDefault.parse(123);        // "default value"
+stringWithDefault.parse(null);       // "default value"
 
-// Number with catch
 const safeNumber = k.number().positive().catch(0);
-safeNumber.parse(42);                 // 42
-safeNumber.parse(-5);                 // 0 (negative fails positive check)
-safeNumber.parse("abc");              // 0 (not a number)
+safeNumber.parse(42);                // 42
+safeNumber.parse(-5);                // 0
 
-// Object with catch
 const userWithDefault = k.object({
   name: k.string(),
   age: k.number()
 }).catch({ name: "Anonymous", age: 0 });
-
-userWithDefault.parse({ name: "John", age: 30 });  // { name: "John", age: 30 }
-userWithDefault.parse({ invalid: true });          // { name: "Anonymous", age: 0 }
-
-// Combine with coercion
-const safePrice = k.coerce.number().positive().catch(0);
-safePrice.parse("99.99");   // 99.99
-safePrice.parse("invalid"); // 0
-safePrice.parse(-50);       // 0
+userWithDefault.parse({ name: "John", age: 30 });       // { name: "John", age: 30 }
+userWithDefault.parse({ invalid: true });               // { name: "Anonymous", age: 0 }
 ```
 
-## 📦 Passthrough, Strip, and Strict
+## Passthrough, Strip, and Strict
 
 Control how object schemas handle extra properties:
 
@@ -466,8 +524,8 @@ userSchema.parse({ name: 'John', extra: 'removed' });
 
 // Passthrough: keep extra keys
 const passthroughSchema = userSchema.passthrough();
-passthroughSchema.parse({ name: 'John', extra: 'kept', another: 123 });
-// { name: 'John', extra: 'kept', another: 123 }
+passthroughSchema.parse({ name: 'John', extra: 'kept' });
+// { name: 'John', extra: 'kept' }
 
 // Explicit strip (same as default)
 const stripSchema = userSchema.strip();
@@ -480,7 +538,7 @@ strictSchema.parse({ name: 'John', extra: 'not allowed' });
 // Error: Unknown keys: extra
 ```
 
-## 🔄 Transforms
+## Transforms
 
 ```typescript
 const schema = k.string()
@@ -491,14 +549,14 @@ const result = schema.safeParse('  hello  ');
 // result.data === 'HELLO'
 ```
 
-## ⚡ Async Validation
+## Async Validation
 
 Validate against external services, databases, or APIs:
 
 ```typescript
 import { k } from 'katax-core';
 
-// Check if email is already registered
+// Define an async validator
 const emailUniqueValidator = async (email, path) => {
   const exists = await db.users.findOne({ email });
   if (exists) {
@@ -507,23 +565,10 @@ const emailUniqueValidator = async (email, path) => {
   return [];
 };
 
-// Check if password is compromised
-const passwordSecureValidator = async (password, path) => {
-  const isCompromised = await checkHaveIBeenPwned(password);
-  if (isCompromised) {
-    return [{ path, message: 'Password has been compromised' }];
-  }
-  return [];
-};
-
-// Create schema with async validators
+// Schema with async validators
 const registrationSchema = k.object({
-  email: k.email().asyncRefine(emailUniqueValidator),
-  password: k.string()
-    .minLength(8)
-    .regex(/[A-Z]/, 'Must contain uppercase')
-    .regex(/[0-9]/, 'Must contain number')
-    .asyncRefine(passwordSecureValidator)
+  email: k.email(),
+  password: k.string().minLength(8)
 });
 
 // Use async validation
@@ -533,161 +578,26 @@ const result = await registrationSchema.safeParseAsync({
 });
 
 if (result.success) {
-  console.log('Registration data valid:', result.data);
+  console.log('Valid:', result.data);
 } else {
-  console.log('Validation errors:', result.issues);
-}
-```
-
-### Async Methods
-
-- `.asyncRefine(validator)` - Add async validator
-- `.safeParseAsync(input)` - Async validation with safe result
-- `.parseAsync(input)` - Async validation that throws on error
-- `.isValidAsync(input)` - Check if valid asynchronously
-
-### Features
-
-- ✅ Runs sync validations first, then async (fail-fast)
-- ✅ Works with nested objects and arrays
-- ✅ Compatible with `optional()`, `nullable()`, `default()`
-- ✅ Multiple async validators can be chained
-
-## 🎯 Advanced Usage
-
-### Optional and Nullable
-```typescript
-const schema = k.object({
-  optional: k.string().optional(),
-  nullable: k.string().nullable(),
-  both: k.string().optional().nullable()
-});
-```
-
-### Complex Nested Objects
-```typescript
-const blogSchema = k.object({
-  title: k.string().minLength(5),
-  author: k.object({
-    name: k.string(),
-    email: k.email()
-  }),
-  tags: k.array(k.string()).unique(),
-  publishedAt: k.date().isPast()
-});
-```
-
-### Multiple Validation Methods
-```typescript
-// Get validated data
-const result = schema.safeParse(data);
-if (result.success) {
-  // Use result.data
+  console.log('Errors:', result.issues);
 }
 
-// Just check if valid
-const validation = schema.validate(data);
-if (validation.valid) {
-  // Data is valid, but no transformed data returned
-}
+// Quick async check
+const isValid = await registrationSchema.isValidAsync(data);
+// { valid: boolean, issues: Issue[] }
+
+// Throw on failure
+const data = await registrationSchema.parseAsync(input);
 ```
 
-## 🎯 Real-World Examples
+**Schema async methods:**
+- `.parseAsync(input)` - returns `Promise<T>`, throws on error
+- `.safeParseAsync(input)` - returns `AsyncSafeParseResult<T>`
+- `.isValidAsync(input)` - returns `Promise<AsyncValidationResult>`
+- `.hasAsyncValidation()` - returns `boolean` (check if any async validators exist)
 
-### API Schema Composition
-```typescript
-import { k, kataxInfer } from 'katax-core';
-
-// Base schemas for reuse
-const timestampFields = k.object({
-  createdAt: k.string(),
-  updatedAt: k.string()
-});
-
-const idField = k.object({
-  id: k.number()
-});
-
-// Compose user schema
-const userSchema = idField
-  .extend(timestampFields.getShape())
-  .extend({
-    name: k.string().minLength(2),
-    email: k.email(),
-    role: k.enum(['admin', 'user', 'guest'])
-  });
-
-type User = kataxInfer<typeof userSchema>;
-// { id: number, createdAt: string, updatedAt: string, name: string, email: string, role: 'admin' | 'user' | 'guest' }
-
-// Create post schema that extends base
-const postSchema = idField
-  .extend(timestampFields.getShape())
-  .extend({
-    title: k.string().minLength(5),
-    content: k.string(),
-    author: userSchema,
-    tags: k.array(k.string()),
-    status: k.enum(['draft', 'published', 'archived'])
-  });
-
-type Post = kataxInfer<typeof postSchema>;
-```
-
-### Form Validation with Dynamic Fields
-```typescript
-const formFieldSchema = k.object({
-  type: k.enum(['text', 'number', 'email', 'select']),
-  label: k.string(),
-  required: k.boolean().optional(),
-  value: k.union([k.string(), k.number(), k.boolean()]).nullable()
-});
-
-const formSchema = k.object({
-  id: k.string(),
-  fields: k.record(formFieldSchema)
-});
-
-formSchema.parse({
-  id: 'contact-form',
-  fields: {
-    name: { type: 'text', label: 'Name', required: true, value: 'John' },
-    age: { type: 'number', label: 'Age', value: 25 },
-    email: { type: 'email', label: 'Email', value: null }
-  }
-});
-```
-
-### Discriminated Union for API Responses
-```typescript
-const successResponse = k.object({
-  success: k.literal(true),
-  data: k.object({
-    id: k.number(),
-    name: k.string()
-  })
-});
-
-const errorResponse = k.object({
-  success: k.literal(false),
-  error: k.object({
-    code: k.number(),
-    message: k.string()
-  })
-});
-
-const apiResponse = k.union([successResponse, errorResponse]);
-
-// Type-safe handling
-const result = apiResponse.parse(response);
-if (result.success) {
-  console.log(result.data.name); // TypeScript knows data exists
-} else {
-  console.log(result.error.message); // TypeScript knows error exists
-}
-```
-
-## 📋 Error Handling
+## Error Handling
 
 Katax returns all validation errors at once:
 
@@ -700,182 +610,136 @@ if (!result.success) {
 }
 ```
 
-## 🏗️ TypeScript Integration
+### KataxError
 
-Full type inference and safety:
+```typescript
+import { KataxError } from 'katax-core';
+
+try {
+  schema.parse(invalidData);
+} catch (e) {
+  if (e instanceof KataxError) {
+    e.issues.forEach(issue => {
+      console.log(`${issue.path.join('.')}: ${issue.message}`);
+    });
+  }
+}
+```
+
+`KataxError` extends `Error` with a `readonly issues: Issue[]` property.
+
+## Error Utilities
+
+```typescript
+import { createIssue, issues, mergeIssues, isIssueArray, KataxError } from 'katax-core';
+
+// Create a single issue
+const issue = createIssue('name', 'Name is required');
+
+// Create issues array
+const errs = issues('name', 'Name is required');
+
+// Merge multiple issue arrays
+const allIssues = mergeIssues(...issueArrays);
+
+// Check if a value is an Issue array
+if (isIssueArray(value)) {
+  // handle issues
+}
+```
+
+## TypeScript Integration
 
 ```typescript
 import { k, kataxInfer } from 'katax-core';
 
-const schema = k.object({
+const userSchema = k.object({
   name: k.string(),
   age: k.number()
 });
 
-type User = kataxInfer<typeof schema>;
+type User = kataxInfer<typeof userSchema>;
 // User = { name: string; age: number }
-```
 
-**Example with descriptive type alias:**
-
-```typescript
-import { k, kataxInfer } from 'katax-core';
-
+// With descriptive type alias
 const createProjectSchema = k.object({
   title: k.string().min(3),
   description: k.string().optional(),
   tags: k.array(k.string())
 });
 
-export type CreateProjectData = kataxInfer<typeof createProjectSchema>;
+type CreateProjectData = kataxInfer<typeof createProjectSchema>;
 // CreateProjectData = { title: string; description?: string; tags: string[] }
 ```
 
-## 📋 API Reference
+## Core Types
 
-### Core Methods
+```typescript
+type Path = (string | number)[]
 
-**Synchronous:**
-- `.parse(input)` - Parse and validate input, throws on error
-- `.safeParse(input)` - Safe parsing, returns `{ success: boolean, data?: T, issues?: Issue[] }`
-- `.validate(input)` - Validation only, returns `{ valid: boolean, issues: Issue[] }`
+interface Issue {
+  path: Path
+  message: string
+}
 
-**Asynchronous:**
-- `.asyncRefine(validator)` - Add async validator function
-- `.parseAsync(input)` - Async parse and validate, throws on error
-- `.safeParseAsync(input)` - Async safe parsing with result object
-- `.isValidAsync(input)` - Async validation check, returns `{ valid: boolean, issues: Issue[] }`
+type SafeParseResult<T> =
+  | { success: true; data: T }
+  | { success: false; issues: Issue[] }
 
-**Modifiers:**
-- `.optional()` - Make schema optional (allows undefined)
-- `.nullable()` - Make schema nullable (allows null)
-- `.default(value)` - Provide default value
-- `.transform(fn)` - Transform validated data
+interface ValidationResult {
+  valid: boolean
+  issues: Issue[]
+}
 
-## 🔄 Changelog
+type AsyncSafeParseResult<T> =
+  | { success: true; data: T }
+  | { success: false; issues: Issue[] }
 
-### v1.3.0
-- ✨ **NEW**: Type coercion with `k.coerce.number()`, `k.coerce.boolean()`, `k.coerce.string()`, `k.coerce.date()` - auto-convert types before validation
-- ✨ **NEW**: Preprocess with `k.preprocess()` - transform input before validation
-- ✨ **NEW**: Catch/Fallback with `.catch()` - return default values on validation errors
-- ✨ **NEW**: Passthrough with `.passthrough()` - keep extra object properties
-- ✨ **NEW**: Strip with `.strip()` - explicitly remove extra object properties
-- 🔧 Improved date coercion with validation rules (min, max, between, isFuture, isPast)
-- 📚 Comprehensive documentation for all new features
+interface AsyncValidationResult {
+  valid: boolean
+  issues: Issue[]
+}
 
-### v1.2.0
-- ✨ **NEW**: Union schemas with `k.union()` - validate against multiple possible types
-- ✨ **NEW**: Intersection schemas with `k.intersection()` - combine schemas that must all match
-- ✨ **NEW**: Object schema methods: `.extend()`, `.merge()`, `.getShape()`
-- ✨ **NEW**: Literal schema with `k.literal()` - exact value matching
-- ✨ **NEW**: Enum schema with `k.enum()` - string literal unions
-- ✨ **NEW**: Tuple schema with `k.tuple()` - fixed-length typed arrays
-- ✨ **NEW**: Record schema with `k.record()` - objects with uniform value types
-- ✨ **NEW**: Custom schema with `k.custom()` - create your own validation logic
-- ✨ **NEW**: Lazy schema with `k.lazy()` - recursive/self-referencing types
-- ✨ **NEW**: Utility types: `k.any()`, `k.unknown()`, `k.never()`
-- ⚡ Performance optimizations with helper utilities
-- 📚 Comprehensive documentation and examples
+type AsyncValidator<T> = (value: T, path: Issue["path"]) => Promise<Issue[]>
 
-### v1.1.0
-- ✨ **NEW**: Async validation support with `.asyncRefine()`
-- ✨ **NEW**: Async methods: `.safeParseAsync()`, `.parseAsync()`, `.isValidAsync()`
-- ✨ **NEW**: Async validation works with nested objects and arrays
-- 🐛 Fixed: Array schema async validation compatibility
-- 📚 Updated documentation with async examples
-
-### v1.0.0
-- Initial release
-- Core validation schemas: string, number, boolean, object, array, date
-- Extended schemas: email, base64, file
-- TypeScript support with full type inference
-- Transform and chaining API
-- Multiple error reporting
-
-## ❓ FAQ
-
-**Q: How does this compare to Zod?**  
-A: Katax Core is lighter with fewer dependencies and focuses on simplicity while providing similar type-safety.
-
-**Q: Can I use this in React/Vue/Angular?**  
-A: Yes! Katax Core works in any JavaScript environment.
-
-**Q: Does it support custom error messages?**  
-A: Yes, most validation methods accept an optional custom error message parameter.
-
-## 🏗️ Roadmap
-
-- [x] Async validation support
-- [x] Union and intersection schemas
-- [x] Custom schema creation helpers
-- [x] Performance optimizations
-- [x] Extend and merge for object schemas
-- [x] Recursive schemas with lazy evaluation
-- [x] Coercion (auto-convert types)
-- [x] Preprocess (transform before validation)
-- [x] Catch/Fallback (error recovery)
-- [x] Passthrough/Strip (extra properties control)
-- [ ] Plugin system
-- [ ] i18n support for error messages
-
-## 🐛 Issues & Support
-
-If you find a bug or need help, please:
-1. Check [existing issues](https://github.com/LOPIN6FARRIER/katax-core/issues)
-2. Create a [new issue](https://github.com/LOPIN6FARRIER/katax-core/issues/new) with details
-3. Include code examples and error messages
-
-## 🌐 Browser Support
-
-Works in all modern browsers and Node.js environments. Some schemas like `File` require browser APIs.
-
-## 📄 License
-
-MIT
-
-## 🤝 Contributing
-
-Contributions are welcome! Here's how you can help:
-
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
-5. **Open** a Pull Request
-
-### Development Setup
-
-```bash
-# Clone the repo
-git clone https://github.com/LOPIN6FARRIER/katax-core.git
-cd katax-core
-
-# Install dependencies
-npm install
-
-# Run tests
-npm test
-
-# Build the project
-npm run build
+type kataxInfer<T> = T extends Schema<infer U> ? U : never
 ```
 
-### Guidelines
-- Write tests for new features
-- Follow existing code style
-- Update documentation
-- Ensure all tests pass
+## The `k` Factory
 
----
+```typescript
+const k = {
+  string(): StringSchema
+  number(): NumberSchema
+  boolean(): BooleanSchema
+  object<T>(shape): ObjectSchema<T>
+  date(): DateSchema
+  twoDates(separator?): TwoDatesSchema   // default: '|'
+  array<T>(elementSchema?): ArraySchema<T>
+  file(): FileSchema
+  base64(): Base64Schema
+  email(): EmailSchema
+  union<T>(schemas): UnionSchema<T>
+  intersection<T>(schemas): IntersectionSchema<T>
+  lazy<T>(resolver): LazySchema<T>
+  custom<T>(validator): CustomSchema<T>
+  literal<T>(value): LiteralSchema<T>
+  enum<T>(values): EnumSchema<T>
+  any(): AnySchema
+  unknown(): UnknownSchema
+  never(): NeverSchema
+  tuple<T>(schemas): TupleSchema<T>
+  record<V>(valueSchema): RecordSchema<V>
+  coerce: {
+    number(): CoercedNumberSchema
+    boolean(): CoercedBooleanSchema
+    string(): CoercedStringSchema
+    date(): CoercedDateSchema
+  }
+  preprocess<T>(preprocessor, schema): PreprocessSchema<T>
+}
+```
 
-## 🌐 Katax Ecosystem
+## License
 
-| Package | npm | GitHub | DeepWiki |
-|---------|-----|--------|----------|
-| **katax-core** | [npm](https://www.npmjs.com/package/katax-core) | [GitHub](https://github.com/LOPIN6FARRIER/katax-core) | [DeepWiki](https://deepwiki.com/LOPIN6FARRIER/katax-core) |
-| **katax-service-manager** | [npm](https://www.npmjs.com/package/katax-service-manager) | [GitHub](https://github.com/LOPIN6FARRIER/katax-service-manager) | [DeepWiki](https://deepwiki.com/LOPIN6FARRIER/katax-service-manager) |
-| **katax-cli** | [npm](https://www.npmjs.com/package/katax-cli) | [GitHub](https://github.com/LOPIN6FARRIER/katax-cli) | [DeepWiki](https://deepwiki.com/LOPIN6FARRIER/katax-cli) |
-
----
-
-Made with ❤️ by Vinicio Esparza
+MIT
