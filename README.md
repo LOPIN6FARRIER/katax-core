@@ -32,6 +32,18 @@ A lightweight and extensible schema validation library for TypeScript/JavaScript
 npm install katax-core
 ```
 
+### AI Agent Skill
+
+Install the [katax-core AI agent skill](https://skills.sh/LOPIN6FARRIER/katax-core) for enhanced IDE assistance:
+
+[![skills.sh](https://skills.sh/b/LOPIN6FARRIER/katax-core)](https://skills.sh/LOPIN6FARRIER/katax-core)
+
+```bash
+npx skills add LOPIN6FARRIER/katax-core
+```
+
+Compatible with Claude Code, Cursor, Windsurf, GitHub Copilot, and other AI coding agents.
+
 ## Quick Start
 
 ```typescript
