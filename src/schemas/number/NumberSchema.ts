@@ -1,5 +1,5 @@
 import { BaseSchema } from "../../core/BaseSchema"
-import { Issue } from "../../core/result"
+import { Issue, describeReceived } from "../../core/result"
 
 type ValidationRule = {
   check: (value: number) => boolean
@@ -11,7 +11,7 @@ export class NumberSchema extends BaseSchema<number> {
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | number {
     if (typeof input !== "number") {
-      return [{ path, message: "Expected number" }]
+      return [{ path, message: `Expected number, received ${describeReceived(input)}` }]
     }
 
     const issues: Issue[] = []
@@ -36,67 +36,71 @@ export class NumberSchema extends BaseSchema<number> {
   }
 
   min(length: number, message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value >= length,
       message: message ?? `Number must be at least ${length}`,
     })
-    return this
+    return clone
   }
 
   max(length: number, message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value <= length,
       message: message ?? `Number must be at most ${length}`,
     })
-    return this
+    return clone
   }
 
-  length(exact: number, message?: string): this {
-    this.rules.push({
+  equals(exact: number, message?: string): this {
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value === exact,
       message: message ?? `Number must be exactly ${exact}`,
     })
-    return this
-  }
-
-  nonempty(message?: string): this {
-    return this.min(1, message ?? "Number cannot be empty")
+    return clone
   }
 
   positive(message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value > 0,
       message: message ?? "Number must be positive",
     })
-    return this
+    return clone
   }
 
   negative(message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value < 0,
       message: message ?? "Number must be negative",
     })
-    return this
+    return clone
   }
 
   finite(message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => Number.isFinite(value),
       message: message ?? "Number must be finite",
     })
-    return this
+    return clone
   }
 
   integer(message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => Number.isInteger(value),
       message: message ?? "Number must be an integer",
     })
-    return this
+    return clone
   }
 
   multipleOf(factor: number, message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => {
         // Handle floating point precision issues
         const remainder = value % factor;
@@ -105,55 +109,61 @@ export class NumberSchema extends BaseSchema<number> {
       },
       message: message ?? `Number must be a multiple of ${factor}`,
     })
-    return this
+    return clone
   }
 
   notEqual(forbidden: number, message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value !== forbidden,
       message: message ?? `Number must not be equal to ${forbidden}`,
     })
-    return this 
+    return clone
   }
 
   between(min: number, max: number, message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value >= min && value <= max,
       message: message ?? `Number must be between ${min} and ${max}`,
     })
-    return this
+    return clone
   }
 
   greaterThan(threshold: number, message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value > threshold,
       message: message ?? `Number must be greater than ${threshold}`,
     })
-    return this
+    return clone
   }
 
   lessThan(threshold: number, message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value < threshold,
       message: message ?? `Number must be less than ${threshold}`,
     })
-    return this
+    return clone
   }
 
   oneOf(options: number[], message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => options.includes(value),
       message: message ?? `Number must be one of: ${options.join(", ")}`,
     })
-    return this
+    return clone
   }
 
   notOneOf(options: number[], message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => !options.includes(value),
       message: message ?? `Number must not be one of: ${options.join(", ")}`,
     })
-    return this
+    return clone
   }
 
 

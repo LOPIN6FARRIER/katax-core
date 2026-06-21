@@ -3,6 +3,7 @@ import { Issue } from "../../core/result"
 import { NumberSchema } from "../number/NumberSchema"
 import { BooleanSchema } from "../boolean/BooleanSchema"
 import { StringSchema } from "../string/StringSchema"
+import { format as formatDate, parse, parseISO, isValid } from "date-fns"
 
 /**
  * Coerced Number Schema - converts strings and other types to numbers before validation.
@@ -57,62 +58,72 @@ export class CoercedNumberSchema extends BaseSchema<number> {
 
   // Proxy methods to inner schema
   min(value: number, message?: string): this {
-    this.innerSchema.min(value, message)
+    this.innerSchema = this.innerSchema.min(value, message)
     return this
   }
 
   max(value: number, message?: string): this {
-    this.innerSchema.max(value, message)
+    this.innerSchema = this.innerSchema.max(value, message)
+    return this
+  }
+
+  equals(exact: number, message?: string): this {
+    this.innerSchema = this.innerSchema.equals(exact, message)
     return this
   }
 
   positive(message?: string): this {
-    this.innerSchema.positive(message)
+    this.innerSchema = this.innerSchema.positive(message)
     return this
   }
 
   negative(message?: string): this {
-    this.innerSchema.negative(message)
+    this.innerSchema = this.innerSchema.negative(message)
     return this
   }
 
   integer(message?: string): this {
-    this.innerSchema.integer(message)
+    this.innerSchema = this.innerSchema.integer(message)
     return this
   }
 
   finite(message?: string): this {
-    this.innerSchema.finite(message)
+    this.innerSchema = this.innerSchema.finite(message)
     return this
   }
 
   multipleOf(factor: number, message?: string): this {
-    this.innerSchema.multipleOf(factor, message)
+    this.innerSchema = this.innerSchema.multipleOf(factor, message)
     return this
   }
 
   between(min: number, max: number, message?: string): this {
-    this.innerSchema.between(min, max, message)
+    this.innerSchema = this.innerSchema.between(min, max, message)
     return this
   }
 
   greaterThan(threshold: number, message?: string): this {
-    this.innerSchema.greaterThan(threshold, message)
+    this.innerSchema = this.innerSchema.greaterThan(threshold, message)
     return this
   }
 
   lessThan(threshold: number, message?: string): this {
-    this.innerSchema.lessThan(threshold, message)
+    this.innerSchema = this.innerSchema.lessThan(threshold, message)
+    return this
+  }
+
+  notEqual(forbidden: number, message?: string): this {
+    this.innerSchema = this.innerSchema.notEqual(forbidden, message)
     return this
   }
 
   oneOf(options: number[], message?: string): this {
-    this.innerSchema.oneOf(options, message)
+    this.innerSchema = this.innerSchema.oneOf(options, message)
     return this
   }
 
   notOneOf(options: number[], message?: string): this {
-    this.innerSchema.notOneOf(options, message)
+    this.innerSchema = this.innerSchema.notOneOf(options, message)
     return this
   }
 }
@@ -170,17 +181,17 @@ export class CoercedBooleanSchema extends BaseSchema<boolean> {
 
   // Proxy methods to inner schema
   isTrue(message?: string): this {
-    this.innerSchema.isTrue(message)
+    this.innerSchema = this.innerSchema.isTrue(message)
     return this
   }
 
   isFalse(message?: string): this {
-    this.innerSchema.isFalse(message)
+    this.innerSchema = this.innerSchema.isFalse(message)
     return this
   }
 
   equals(expected: boolean, message?: string): this {
-    this.innerSchema.equals(expected, message)
+    this.innerSchema = this.innerSchema.equals(expected, message)
     return this
   }
 }
@@ -228,68 +239,148 @@ export class CoercedStringSchema extends BaseSchema<string> {
 
   // Proxy common methods to inner schema
   minLength(length: number, message?: string): this {
-    this.innerSchema.minLength(length, message)
+    this.innerSchema = this.innerSchema.minLength(length, message)
     return this
   }
 
   maxLength(length: number, message?: string): this {
-    this.innerSchema.maxLength(length, message)
+    this.innerSchema = this.innerSchema.maxLength(length, message)
+    return this
+  }
+
+  length(exact: number, message?: string): this {
+    this.innerSchema = this.innerSchema.length(exact, message)
     return this
   }
 
   email(message?: string): this {
-    this.innerSchema.email(message)
+    this.innerSchema = this.innerSchema.email(message)
     return this
   }
 
   url(message?: string): this {
-    this.innerSchema.url(message)
+    this.innerSchema = this.innerSchema.url(message)
     return this
   }
 
   regex(pattern: RegExp, message?: string): this {
-    this.innerSchema.regex(pattern, message)
+    this.innerSchema = this.innerSchema.regex(pattern, message)
     return this
   }
 
   trim(): this {
-    this.innerSchema.trim()
+    this.innerSchema = this.innerSchema.trim()
     return this
   }
 
   lowercase(message?: string): this {
-    this.innerSchema.lowercase(message)
+    this.innerSchema = this.innerSchema.lowercase(message)
     return this
   }
 
   uppercase(message?: string): this {
-    this.innerSchema.uppercase(message)
+    this.innerSchema = this.innerSchema.uppercase(message)
+    return this
+  }
+
+  alpha(message?: string): this {
+    this.innerSchema = this.innerSchema.alpha(message)
+    return this
+  }
+
+  alphanumeric(message?: string): this {
+    this.innerSchema = this.innerSchema.alphanumeric(message)
+    return this
+  }
+
+  ascii(message?: string): this {
+    this.innerSchema = this.innerSchema.ascii(message)
+    return this
+  }
+
+  ip(message?: string): this {
+    this.innerSchema = this.innerSchema.ip(message)
+    return this
+  }
+
+  nonempty(message?: string): this {
+    this.innerSchema = this.innerSchema.nonempty(message)
+    return this
+  }
+
+  notEmpty(message?: string): this {
+    this.innerSchema = this.innerSchema.notEmpty(message)
+    return this
+  }
+
+  noWhitespace(message?: string): this {
+    this.innerSchema = this.innerSchema.noWhitespace(message)
+    return this
+  }
+
+  includes(substring: string, message?: string): this {
+    this.innerSchema = this.innerSchema.includes(substring, message)
     return this
   }
 
   oneOf(options: string[], message?: string): this {
-    this.innerSchema.oneOf(options, message)
+    this.innerSchema = this.innerSchema.oneOf(options, message)
+    return this
+  }
+
+  notOneOf(options: string[], message?: string): this {
+    this.innerSchema = this.innerSchema.notOneOf(options, message)
     return this
   }
 
   startsWith(prefix: string, message?: string): this {
-    this.innerSchema.startsWith(prefix, message)
+    this.innerSchema = this.innerSchema.startsWith(prefix, message)
     return this
   }
 
   endsWith(suffix: string, message?: string): this {
-    this.innerSchema.endsWith(suffix, message)
+    this.innerSchema = this.innerSchema.endsWith(suffix, message)
     return this
   }
 
   uuid(message?: string): this {
-    this.innerSchema.uuid(message)
+    this.innerSchema = this.innerSchema.uuid(message)
+    return this
+  }
+
+  datetime(message?: string): this {
+    this.innerSchema = this.innerSchema.datetime(message)
+    return this
+  }
+
+  jwt(message?: string): this {
+    this.innerSchema = this.innerSchema.jwt(message)
+    return this
+  }
+
+  cuid2(message?: string): this {
+    this.innerSchema = this.innerSchema.cuid2(message)
+    return this
+  }
+
+  ulid(message?: string): this {
+    this.innerSchema = this.innerSchema.ulid(message)
+    return this
+  }
+
+  emoji(message?: string): this {
+    this.innerSchema = this.innerSchema.emoji(message)
+    return this
+  }
+
+  cidr(message?: string): this {
+    this.innerSchema = this.innerSchema.cidr(message)
     return this
   }
 }
 
 type DateValidationRule = {
-  check: (value: Date) => boolean
+  check: (value: Date, input?: unknown) => boolean
   message: string
 }
 
@@ -321,8 +412,8 @@ export class CoercedDateSchema extends BaseSchema<Date> {
       }
       date = input
     } else if (typeof input === 'string') {
-      const parsed = new Date(input)
-      if (Number.isNaN(parsed.getTime())) {
+      const parsed = parseISO(input)
+      if (!isValid(parsed)) {
         return [{ path, message: `Cannot coerce "${input}" to date` }]
       }
       date = parsed
@@ -341,7 +432,7 @@ export class CoercedDateSchema extends BaseSchema<Date> {
     // Run validation rules
     const issues: Issue[] = []
     for (const rule of this.rules) {
-      if (!rule.check(date)) {
+      if (!rule.check(date, input)) {
         issues.push({ path, message: rule.message })
       }
     }
@@ -362,46 +453,101 @@ export class CoercedDateSchema extends BaseSchema<Date> {
 
   min(minDate: string | Date, message?: string): this {
     const min = minDate instanceof Date ? minDate : new Date(minDate)
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value >= min,
       message: message ?? `Date must be on or after ${min.toISOString().split('T')[0]}`,
     })
-    return this
+    return clone
   }
 
   max(maxDate: string | Date, message?: string): this {
     const max = maxDate instanceof Date ? maxDate : new Date(maxDate)
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value <= max,
       message: message ?? `Date must be on or before ${max.toISOString().split('T')[0]}`,
     })
-    return this
+    return clone
   }
 
   between(start: string | Date, end: string | Date, message?: string): this {
     const s = start instanceof Date ? start : new Date(start)
     const e = end instanceof Date ? end : new Date(end)
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value >= s && value <= e,
       message: message ?? `Date must be between ${s.toISOString().split('T')[0]} and ${e.toISOString().split('T')[0]}`,
     })
-    return this
+    return clone
   }
 
   isFuture(message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value > new Date(),
       message: message ?? 'Date must be in the future',
     })
-    return this
+    return clone
   }
 
   isPast(message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value < new Date(),
       message: message ?? 'Date must be in the past',
     })
-    return this
+    return clone
+  }
+
+  format(formatStr: string, message?: string): this {
+    const clone = this._clone() as this
+    clone.rules.push({
+      check: (_value, input) => {
+        const strInput = typeof input === 'string' ? input : ''
+        if (!strInput) return false
+        try {
+          const parsed = parse(strInput, formatStr, new Date())
+          const formatted = formatDate(parsed, formatStr)
+          return formatted === strInput
+        } catch {
+          return false
+        }
+      },
+      message: message ?? `Date must match format '${formatStr}'`,
+    })
+    return clone
+  }
+
+  isDateOnly(message?: string): this {
+    const clone = this._clone() as this
+    clone.rules.push({
+      check: (value, input) => {
+        const strInput = typeof input === 'string' ? input : ''
+        return /^\d{4}-\d{2}-\d{2}$/.test(strInput) &&
+               value.getHours() === 0 &&
+               value.getMinutes() === 0 &&
+               value.getSeconds() === 0
+      },
+      message: message ?? "Date must be date-only (no time component)",
+    })
+    return clone
+  }
+
+  hasTime(message?: string): this {
+    const clone = this._clone() as this
+    clone.rules.push({
+      check: (_value, input) => {
+        const strInput = typeof input === 'string' ? input : ''
+        return strInput.includes('T') || strInput.includes(' ')
+      },
+      message: message ?? "Date must include time component",
+    })
+    return clone
+  }
+
+  formatOutput(formatStr: string): BaseSchema<string> {
+    return this.transform((date) => formatDate(date, formatStr))
   }
 }
 

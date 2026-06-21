@@ -1,5 +1,5 @@
 import { BaseSchema } from "../../core/BaseSchema"
-import { Issue } from "../../core/result"
+import { Issue, describeReceived } from "../../core/result"
 
 type ValidationRule = {
   check: (value: boolean) => boolean
@@ -11,7 +11,7 @@ export class BooleanSchema extends BaseSchema<boolean> {
 
    _parse(input: unknown, path: Issue["path"]): Issue[] | boolean {
     if (typeof input !== "boolean") {
-      return [{ path, message: "Expected boolean" }]
+      return [{ path, message: `Expected boolean, received ${describeReceived(input)}` }]
     }
 
     const issues: Issue[] = []
@@ -36,27 +36,30 @@ export class BooleanSchema extends BaseSchema<boolean> {
   }
 
   isTrue(message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value === true,
       message: message ?? "Boolean must be true",
     })
-    return this
+    return clone
   }
 
     isFalse(message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value === false,
       message: message ?? "Boolean must be false",
     })
-    return this
+    return clone
   }
 
   equals(expected: boolean, message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value === expected,
       message: message ?? `Boolean must be ${expected}`,
     })
-    return this
+    return clone
   }
 
 

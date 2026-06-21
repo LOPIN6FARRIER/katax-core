@@ -1,5 +1,6 @@
 import { BaseSchema } from "../../core/BaseSchema"
-import { Issue } from "../../core/result"
+import type { AsyncValidator } from "../../core/AsyncResult"
+import { Issue, describeReceived } from "../../core/result"
 
 type ObjectShape = Record<string, BaseSchema<any>>
 
@@ -16,7 +17,7 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | InferObjectShape<T> {
     if (typeof input !== "object" || input === null || Array.isArray(input)) {
-      return [{ path, message: "Expected object" }]
+      return [{ path, message: `Expected object, received ${describeReceived(input)}` }]
     }
 
     const issues: Issue[] = []
@@ -119,13 +120,16 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
 
   // Method to set case sensitivity
   caseInsensitive(): this {
-    this.caseSensitive = false
-    return this
+    const clone = this._clone() as this
+    clone.caseSensitive = false
+    return clone
   }
 
   // Method to make object strict (no extra keys allowed)
   strict(): StrictObjectSchema<T> {
-    return new StrictObjectSchema(this.shape)
+    const result = new StrictObjectSchema(this.shape)
+    result._asyncValidators = [...this._asyncValidators]
+    return result
   }
 
   // Method to make specific fields optional
@@ -134,7 +138,10 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
     for (const key in this.shape) {
       partialShape[key] = this.shape[key].optional()
     }
-    return new ObjectSchema(partialShape)
+    const result = new ObjectSchema(partialShape)
+    result.caseSensitive = this.caseSensitive
+    result._asyncValidators = [...this._asyncValidators] as AsyncValidator<any>[]
+    return result
   }
 
   // Pick specific keys
@@ -143,7 +150,10 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
     for (const key of keys) {
       pickedShape[key] = this.shape[key]
     }
-    return new ObjectSchema(pickedShape as Pick<T, K>)
+    const result = new ObjectSchema(pickedShape as Pick<T, K>)
+    result.caseSensitive = this.caseSensitive
+    result._asyncValidators = [...this._asyncValidators] as AsyncValidator<any>[]
+    return result
   }
 
   // Omit specific keys
@@ -154,7 +164,10 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
         omittedShape[key] = this.shape[key]
       }
     }
-    return new ObjectSchema(omittedShape as Omit<T, K>)
+    const result = new ObjectSchema(omittedShape as Omit<T, K>)
+    result.caseSensitive = this.caseSensitive
+    result._asyncValidators = [...this._asyncValidators] as AsyncValidator<any>[]
+    return result
   }
 
   /**
@@ -173,12 +186,14 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
    */
   extend<E extends ObjectShape>(extension: E): ObjectSchema<Omit<T, keyof E> & E> {
     const newShape = { ...this.shape, ...extension } as Omit<T, keyof E> & E
-    const newSchema = new ObjectSchema(newShape)
-    newSchema.caseSensitive = this.caseSensitive
-    return newSchema
+    const result = new ObjectSchema(newShape)
+    result.caseSensitive = this.caseSensitive
+    result._asyncValidators = [...this._asyncValidators] as AsyncValidator<any>[]
+    return result
   }
 
   /**
+
    * Merge this schema with another ObjectSchema.
    * Fields from the other schema override fields with the same key.
    *
@@ -194,7 +209,11 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
    * ```
    */
   merge<U extends ObjectShape>(other: ObjectSchema<U>): ObjectSchema<Omit<T, keyof U> & U> {
-    return this.extend(other.shape)
+    const newShape = { ...this.shape, ...other.shape } as Omit<T, keyof U> & U
+    const result = new ObjectSchema(newShape)
+    result.caseSensitive = this.caseSensitive
+    result._asyncValidators = [...this._asyncValidators, ...other._asyncValidators] as AsyncValidator<any>[]
+    return result
   }
 
   /**
@@ -227,14 +246,17 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
    * ```
    */
   passthrough(): PassthroughObjectSchema<T> {
-    return new PassthroughObjectSchema(this.shape, this.caseSensitive)
+    const result = new PassthroughObjectSchema(this.shape, this.caseSensitive)
+    result._asyncValidators = [...this._asyncValidators] as AsyncValidator<any>[]
+    return result
   }
 
   /**
    * Remove extra keys from the output (keys not in the schema).
-   * This is the default behavior, but can be used to override passthrough.
+   * The base ObjectSchema already strips by default, so this is explicit.
+   * Useful to undo `.passthrough()`.
    *
-   * @returns A StripObjectSchema that removes extra keys
+   * @returns A new ObjectSchema (same behavior)
    *
    * @example
    * ```typescript
@@ -243,8 +265,11 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
    * // Result: { name: 'John' }
    * ```
    */
-  strip(): StripObjectSchema<T> {
-    return new StripObjectSchema(this.shape, this.caseSensitive)
+  strip(): ObjectSchema<T> {
+    const result = new ObjectSchema(this.shape)
+    result.caseSensitive = this.caseSensitive
+    result._asyncValidators = [...this._asyncValidators]
+    return result
   }
 }
 
@@ -259,7 +284,7 @@ class PassthroughObjectSchema<T extends ObjectShape> extends ObjectSchema<T> {
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | InferObjectShape<T> & Record<string, unknown> {
     if (typeof input !== "object" || input === null || Array.isArray(input)) {
-      return [{ path, message: "Expected object" }]
+      return [{ path, message: `Expected object, received ${describeReceived(input)}` }]
     }
 
     const issues: Issue[] = []
@@ -326,22 +351,6 @@ class PassthroughObjectSchema<T extends ObjectShape> extends ObjectSchema<T> {
 
   protected _clone(): PassthroughObjectSchema<T> {
     const cloned = new PassthroughObjectSchema(this.shape, this.caseSensitive)
-    cloned._asyncValidators = [...this._asyncValidators]
-    return cloned
-  }
-}
-
-/**
- * ObjectSchema that explicitly strips extra keys (same as default behavior).
- */
-class StripObjectSchema<T extends ObjectShape> extends ObjectSchema<T> {
-  constructor(shape: T, caseSensitive: boolean = true) {
-    super(shape)
-    this.caseSensitive = caseSensitive
-  }
-
-  protected _clone(): StripObjectSchema<T> {
-    const cloned = new StripObjectSchema(this.shape, this.caseSensitive)
     cloned._asyncValidators = [...this._asyncValidators]
     return cloned
   }

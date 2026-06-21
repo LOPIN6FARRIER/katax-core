@@ -1,5 +1,5 @@
 import { BaseSchema } from "../../core/BaseSchema"
-import { Issue } from "../../core/result"
+import { Issue, describeReceived } from "../../core/result"
 
 type ValidationRule<T> = {
   check: (value: T[]) => boolean
@@ -17,7 +17,7 @@ export class ArraySchema<T> extends BaseSchema<T[]> {
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | T[] {
     if (!Array.isArray(input)) {
-      return [{ path, message: "Expected an array" }]
+      return [{ path, message: `Expected an array, received ${describeReceived(input)}` }]
     }
 
     const issues: Issue[] = []
@@ -111,39 +111,48 @@ export class ArraySchema<T> extends BaseSchema<T[]> {
   }
 
   minLength(min: number, message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value.length >= min,
       message: message ?? `Array must have at least ${min} elements`,
     })
-    return this
+    return clone
   }
 
   maxLength(max: number, message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value.length <= max,
       message: message ?? `Array must have at most ${max} elements`,
     })
-    return this
+    return clone
   }
 
   length(exact: number, message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value.length === exact,
       message: message ?? `Array must have exactly ${exact} elements`,
     })
-    return this
+    return clone
   }
 
   notEmpty(message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => value.length > 0,
       message: message ?? "Array must not be empty",
     })
-    return this
+    return clone
+  }
+
+  nonempty(message?: string): this {
+    return this.notEmpty(message)
   }
 
   unique(message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => {
         // Use custom equality for complex objects
         for (let i = 0; i < value.length; i++) {
@@ -157,18 +166,19 @@ export class ArraySchema<T> extends BaseSchema<T[]> {
       },
       message: message ?? "Array must contain unique values",
     })
-    return this
+    return clone
   }
 
   contains(element: T, message?: string): this {
-    this.rules.push({
+    const clone = this._clone() as this
+    clone.rules.push({
       check: (value) => {
         // Use deep equality for complex objects
         return value.some(item => this.deepEqual(item, element))
       },
       message: message ?? `Array must contain ${element}`,
     })
-    return this
+    return clone
   }
 
   private deepEqual(a: any, b: any): boolean {
