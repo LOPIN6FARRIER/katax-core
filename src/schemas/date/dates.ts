@@ -24,7 +24,7 @@ export const date = () => new DateSchema();
 /**
  * Creates a new two-dates validation schema for date ranges.
  * 
- * Validates objects with start and end date properties, separated by a custom separator.
+ * Parses a string with two ISO dates separated by a separator and returns [Date, Date].
  * 
  * @param separator String separator for date range parsing (default: '|')
  * @returns A TwoDatesSchema instance with validation methods
@@ -32,10 +32,10 @@ export const date = () => new DateSchema();
  * ```typescript
  * const schema = twoDates('|')
  * 
- * schema.parse({
- *   start: '2024-01-01',
- *   end: '2024-12-31'
- * }) // { start: Date, end: Date }
+ * schema.parse('2024-01-01|2024-12-31')
+ * // [Date(2024-01-01), Date(2024-12-31)]
+ * 
+ * schema.maxDifference(365).parse('2024-01-01|2024-12-31')
  * ```
  */
 export const twoDates = (separator: string = '|') => new TwoDatesSchema(separator);

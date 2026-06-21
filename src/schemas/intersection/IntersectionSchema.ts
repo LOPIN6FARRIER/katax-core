@@ -1,24 +1,16 @@
 import { BaseSchema } from "../../core/BaseSchema"
-import { Issue } from "../../core/result"
+import { Issue, isIssueArray } from "../../core/result"
 
 type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends ((k: infer I) => void) ? I : never
 type IntersectionResult<T extends BaseSchema<any>[]> = UnionToIntersection<T[number] extends BaseSchema<infer U> ? U : never>
 
-/**
- * Schema for validating intersection types (value must match ALL schemas).
- * Primarily useful for combining object schemas.
- *
- * @example
- * ```typescript
- * const baseSchema = k.object({ id: k.number() })
- * const nameSchema = k.object({ name: k.string() })
- * const schema = k.intersection([baseSchema, nameSchema])
- * schema.parse({ id: 1, name: "John" }) // { id: 1, name: "John" }
- * ```
- */
 export class IntersectionSchema<T extends BaseSchema<any>[]> extends BaseSchema<IntersectionResult<T>> {
-  constructor(private schemas: T) {
+  private schemas: T
+  private _matchedSchemas: BaseSchema<any>[] = []
+
+  constructor(schemas: T) {
     super()
+    this.schemas = schemas
     if (schemas.length === 0) {
       throw new Error("Intersection schema requires at least one schema")
     }
@@ -26,20 +18,39 @@ export class IntersectionSchema<T extends BaseSchema<any>[]> extends BaseSchema<
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | IntersectionResult<T> {
     const allIssues: Issue[] = []
-    let mergedResult: Record<string, unknown> = {}
+    let mergedResult: Record<string, unknown> | null = null
+    let nonObjectResult: unknown = undefined
+    this._matchedSchemas = []
 
-    // Validate against all schemas
     for (const schema of this.schemas) {
       const result = schema._parse(input, path)
 
-      if (this.isIssueArray(result)) {
+      if (isIssueArray(result)) {
         allIssues.push(...result)
-      } else if (typeof result === 'object' && result !== null) {
-        // Merge object results
-        mergedResult = { ...mergedResult, ...result }
+      } else if (result !== null && typeof result === 'object' && !Array.isArray(result)) {
+        this._matchedSchemas.push(schema)
+        if (nonObjectResult !== undefined) {
+          allIssues.push({ path, message: "Cannot intersect object with non-object type" })
+        } else {
+          const objResult = result as Record<string, unknown>
+          if (mergedResult) {
+            for (const k of Object.keys(objResult)) {
+              mergedResult[k] = objResult[k]
+            }
+          } else {
+            mergedResult = {}
+            for (const k of Object.keys(objResult)) {
+              mergedResult[k] = objResult[k]
+            }
+          }
+        }
       } else {
-        // For non-object schemas, just ensure validation passes
-        mergedResult = result as any
+        this._matchedSchemas.push(schema)
+        if (mergedResult !== null) {
+          allIssues.push({ path, message: "Cannot intersect object with non-object type" })
+        } else {
+          nonObjectResult = result
+        }
       }
     }
 
@@ -47,13 +58,10 @@ export class IntersectionSchema<T extends BaseSchema<any>[]> extends BaseSchema<
       return allIssues
     }
 
-    return mergedResult as IntersectionResult<T>
-  }
-
-  private isIssueArray(result: unknown): result is Issue[] {
-    return Array.isArray(result) && result.length > 0 &&
-      typeof result[0] === 'object' && result[0] !== null &&
-      'path' in result[0] && 'message' in result[0]
+    if (mergedResult !== null) {
+      return mergedResult as IntersectionResult<T>
+    }
+    return nonObjectResult as IntersectionResult<T>
   }
 
   protected _clone(): IntersectionSchema<T> {
@@ -65,8 +73,7 @@ export class IntersectionSchema<T extends BaseSchema<any>[]> extends BaseSchema<
   protected async _parseAsyncNested(value: IntersectionResult<T>, path: Issue["path"]): Promise<Issue[]> {
     const allIssues: Issue[] = []
 
-    // Run async validation on all schemas
-    for (const schema of this.schemas) {
+    for (const schema of this._matchedSchemas) {
       if (schema._asyncValidators.length > 0 ||
           typeof (schema as any)._parseAsyncNested === 'function') {
         const asyncResult = await schema.safeParseAsync(value)

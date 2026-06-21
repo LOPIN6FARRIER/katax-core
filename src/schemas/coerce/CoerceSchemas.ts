@@ -82,6 +82,16 @@ export class CoercedNumberSchema extends BaseSchema<number> {
     return this
   }
 
+  nonnegative(message?: string): this {
+    this.innerSchema = this.innerSchema.nonnegative(message)
+    return this
+  }
+
+  nonpositive(message?: string): this {
+    this.innerSchema = this.innerSchema.nonpositive(message)
+    return this
+  }
+
   integer(message?: string): this {
     this.innerSchema = this.innerSchema.integer(message)
     return this

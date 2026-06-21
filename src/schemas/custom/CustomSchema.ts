@@ -1,5 +1,5 @@
 import { BaseSchema } from "../../core/BaseSchema"
-import { Issue } from "../../core/result"
+import { Issue, isIssueArray, describeReceived } from "../../core/result"
 
 type CustomValidator<T> = (value: unknown, path: Issue["path"]) => Issue[] | T
 
@@ -30,7 +30,7 @@ export class CustomSchema<T> extends BaseSchema<T> {
   _parse(input: unknown, path: Issue["path"]): Issue[] | T {
     const result = this.validator(input, path)
 
-    if (this.isIssueArray(result)) {
+    if (isIssueArray(result)) {
       return result
     }
 
@@ -50,12 +50,6 @@ export class CustomSchema<T> extends BaseSchema<T> {
     }
 
     return result
-  }
-
-  private isIssueArray(result: unknown): result is Issue[] {
-    return Array.isArray(result) && result.length > 0 &&
-      typeof result[0] === 'object' && result[0] !== null &&
-      'path' in result[0] && 'message' in result[0]
   }
 
   protected _clone(): CustomSchema<T> {
@@ -231,7 +225,7 @@ export class TupleSchema<T extends [BaseSchema<any>, ...BaseSchema<any>[]]> exte
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | { [K in keyof T]: T[K] extends BaseSchema<infer U> ? U : never } {
     if (!Array.isArray(input)) {
-      return [{ path, message: "Expected array (tuple)" }]
+      return [{ path, message: `Expected array (tuple), received ${describeReceived(input)}` }]
     }
 
     if (input.length !== this.schemas.length) {
@@ -249,7 +243,7 @@ export class TupleSchema<T extends [BaseSchema<any>, ...BaseSchema<any>[]]> exte
       const itemPath = [...path, i]
       const itemResult = schema._parse(input[i], itemPath)
 
-      if (this.isIssueArray(itemResult)) {
+      if (isIssueArray(itemResult)) {
         issues.push(...itemResult)
       } else {
         result.push(itemResult)
@@ -261,12 +255,6 @@ export class TupleSchema<T extends [BaseSchema<any>, ...BaseSchema<any>[]]> exte
     }
 
     return result as { [K in keyof T]: T[K] extends BaseSchema<infer U> ? U : never }
-  }
-
-  private isIssueArray(result: unknown): result is Issue[] {
-    return Array.isArray(result) && result.length > 0 &&
-      typeof result[0] === 'object' && result[0] !== null &&
-      'path' in result[0] && 'message' in result[0]
   }
 
   protected _clone(): TupleSchema<T> {
@@ -322,7 +310,7 @@ export class RecordSchema<V extends BaseSchema<any>> extends BaseSchema<Record<s
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | Record<string, V extends BaseSchema<infer U> ? U : never> {
     if (typeof input !== "object" || input === null || Array.isArray(input)) {
-      return [{ path, message: "Expected object (record)" }]
+      return [{ path, message: `Expected object (record), received ${describeReceived(input)}` }]
     }
 
     const issues: Issue[] = []
@@ -333,7 +321,7 @@ export class RecordSchema<V extends BaseSchema<any>> extends BaseSchema<Record<s
       const itemPath = [...path, key]
       const itemResult = this.valueSchema._parse(value, itemPath)
 
-      if (this.isIssueArray(itemResult)) {
+      if (isIssueArray(itemResult)) {
         issues.push(...itemResult)
       } else {
         result[key] = itemResult
@@ -345,12 +333,6 @@ export class RecordSchema<V extends BaseSchema<any>> extends BaseSchema<Record<s
     }
 
     return result as Record<string, V extends BaseSchema<infer U> ? U : never>
-  }
-
-  private isIssueArray(result: unknown): result is Issue[] {
-    return Array.isArray(result) && result.length > 0 &&
-      typeof result[0] === 'object' && result[0] !== null &&
-      'path' in result[0] && 'message' in result[0]
   }
 
   protected _clone(): RecordSchema<V> {

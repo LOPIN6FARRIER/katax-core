@@ -128,6 +128,14 @@ export class ArraySchema<T> extends BaseSchema<T[]> {
     return clone
   }
 
+  min(min: number, message?: string): this {
+    return this.minLength(min, message)
+  }
+
+  max(max: number, message?: string): this {
+    return this.maxLength(max, message)
+  }
+
   length(exact: number, message?: string): this {
     const clone = this._clone() as this
     clone.rules.push({

@@ -3,10 +3,12 @@
 import type { Issue } from "./result"
 
 export class KataxError extends Error {
-  readonly issues: Issue[]
+  public issues: Issue[]
 
-  constructor(issues: Issue[]) {
-    super("Katax validation error")
+  constructor(issues: Issue[], options?: { cause?: Error }) {
+    const message = issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')
+    super(message, options)
+    this.name = 'KataxError'
     this.issues = issues
   }
 }

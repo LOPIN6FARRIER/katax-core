@@ -80,6 +80,24 @@ export class NumberSchema extends BaseSchema<number> {
     return clone
   }
 
+  nonnegative(message?: string): this {
+    const clone = this._clone() as this
+    clone.rules.push({
+      check: (value) => value >= 0,
+      message: message ?? "Number must be non-negative",
+    })
+    return clone
+  }
+
+  nonpositive(message?: string): this {
+    const clone = this._clone() as this
+    clone.rules.push({
+      check: (value) => value <= 0,
+      message: message ?? "Number must be non-positive",
+    })
+    return clone
+  }
+
   finite(message?: string): this {
     const clone = this._clone() as this
     clone.rules.push({

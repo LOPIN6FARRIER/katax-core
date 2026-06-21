@@ -7,7 +7,7 @@ export {
   AsyncValidator,
 } from "./core/AsyncResult";
 export * from "./core/errors";
-export { isIssueArray, createIssue, issues, mergeIssues } from "./core/utils";
+export { createIssue, issues, mergeIssues } from "./core/utils";
 
 // Export schema classes for advanced usage
 export { UnionSchema } from "./schemas/union/UnionSchema";
@@ -39,6 +39,21 @@ export { preprocess, PreprocessSchema } from "./schemas/preprocess/preprocess";
 
 // CatchSchema from BaseSchema
 export { CatchSchema } from "./core/BaseSchema";
+
+// BigIntSchema
+export { BigIntSchema } from "./schemas/bigint/BigIntSchema";
+
+// BrandedSchema
+export { BrandedSchema } from "./core/BaseSchema";
+
+// PromiseSchema
+export { PromiseSchema } from "./schemas/promise/PromiseSchema";
+
+// Set & Map schemas
+export { SetSchema, MapSchema } from "./schemas/collection/CollectionSchema";
+
+// DiscriminatedUnion
+export { DiscriminatedUnionSchema } from "./schemas/discriminated-union/DiscriminatedUnionSchema";
 
 // Type inference utility
 export type kataxInfer<T> = T extends { safeParse(input: unknown): infer R }
