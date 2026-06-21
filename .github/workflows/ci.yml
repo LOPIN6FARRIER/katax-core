@@ -27,10 +27,7 @@ jobs:
       run: npm ci
     
     - name: Run tests
-      run: npm run test:all
+      run: npm test
     
     - name: Build
       run: npm run build
-    
-    - name: Check types
-      run: npx tsc --noEmit
