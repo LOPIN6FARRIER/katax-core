@@ -10,8 +10,11 @@ A lightweight and extensible schema validation library for TypeScript/JavaScript
 ## Features
 
 - **Type-safe validation** with full TypeScript support
-- **Comprehensive schemas**: String, Number, Boolean, Object, Array, Date, Email, Base64, File, TwoDates
-- **Union & Intersection schemas** - combine schemas flexibly
+- **Comprehensive schemas**: String, Number, Boolean, BigInt, Object, Array, Date, Email, Base64, File, TwoDates, Promise, Set, Map
+- **Primitive schemas**: nan, undefined, null, void
+- **Union, Intersection & Discriminated Union schemas** - combine schemas flexibly
+- **Branded types** - nominal typing via `.brand()`
+- **String format validators**: email, url, uuid, ip, datetime, jwt, cuid2, ulid, emoji, cidr
 - **Extend & Merge** - compose object schemas easily
 - **Custom schemas** - create your own validation logic
 - **Type coercion** - auto-convert strings to numbers, booleans, dates
@@ -19,11 +22,12 @@ A lightweight and extensible schema validation library for TypeScript/JavaScript
 - **Catch/Fallback** - error recovery with default values
 - **Passthrough/Strip/Strict** - control extra object properties
 - **Async validation support** - validate against databases, APIs, and external services
+- **Immutable chaining** — all builder methods return clones, safe to reuse base schemas
 - **Chaining API** for clean and readable validation rules
 - **Multiple error reporting** - get all validation errors at once
 - **Transform support** - validate and transform data in one step
 - **Recursive schemas** - support for self-referencing types
-- **Zero dependencies**
+- **Minimal dependencies** (only `date-fns`)
 - **Browser and Node.js** compatible
 
 ## Installation
@@ -72,7 +76,7 @@ if (result.success) {
 
 ## Schema Types
 
-All schemas expose the standard `Schema<T>` interface with `parse`, `safeParse`, `validate`, `parseAsync`, `safeParseAsync`, `isValidAsync`, and `hasAsyncValidation` methods.
+All schemas expose the standard `Schema<T>` interface with `parse`, `safeParse`, `validate`, `parseAsync`, `safeParseAsync`, `isValidAsync`, `hasAsyncValidation`, and `refine` methods. All builder methods return new instances (immutable chaining).
 
 ### String Schema
 
@@ -85,6 +89,9 @@ k.string()
   .uuid()               .ip()
   .noWhitespace()       .nonempty()
   .email()              .url()
+  .datetime()           .jwt()
+  .cuid2()              .ulid()
+  .emoji()              .cidr()
   .regex(/^[a-z]+$/)    .startsWith('prefix')
   .endsWith('suffix')   .includes('substring')
   .oneOf(['a', 'b'])    .notOneOf(['c', 'd'])
@@ -97,6 +104,9 @@ k.string()
 - `.uuid(msg?)`, `.ip(msg?)`
 - `.noWhitespace(msg?)`, `.nonempty(msg?)`
 - `.email(msg?)`, `.url(msg?)`
+- `.datetime(msg?)` - ISO 8601 datetime, `.jwt(msg?)` - JSON Web Token
+- `.cuid2(msg?)` - CUID2, `.ulid(msg?)` - ULID
+- `.emoji(msg?)` - emoji sequences, `.cidr(msg?)` - CIDR notation
 - `.regex(pattern, msg?)`
 - `.startsWith(s, msg?)`, `.endsWith(s, msg?)`, `.includes(s, msg?)`
 - `.oneOf(arr, msg?)`, `.notOneOf(arr, msg?)`
@@ -107,17 +117,18 @@ k.string()
 ```typescript
 k.number()
   .min(0)               .max(100)
-  .length(3)            .nonempty()
-  .positive()           .negative()
-  .finite()             .integer()
-  .multipleOf(5)        .notEqual(0)
-  .between(10, 20)      .greaterThan(5)
-  .lessThan(100)        .oneOf([1, 2, 3])
-  .notOneOf([-1, -2])
+  .equals(3)            .positive()
+  .negative()           .nonnegative()
+  .nonpositive()        .finite()
+  .integer()            .multipleOf(5)
+  .notEqual(0)          .between(10, 20)
+  .greaterThan(5)       .lessThan(100)
+  .oneOf([1, 2, 3])     .notOneOf([-1, -2])
 ```
 
-- `.min(n, msg?)`, `.max(n, msg?)`, `.length(n, msg?)`
-- `.nonempty(msg?)`, `.positive(msg?)`, `.negative(msg?)`
+- `.min(n, msg?)`, `.max(n, msg?)`, `.equals(n, msg?)`
+- `.positive(msg?)`, `.negative(msg?)`
+- `.nonnegative(msg?)` (>= 0), `.nonpositive(msg?)` (<= 0)
 - `.finite(msg?)`, `.integer(msg?)`
 - `.multipleOf(n, msg?)`, `.notEqual(n, msg?)`
 - `.between(min, max, msg?)`, `.greaterThan(n, msg?)`, `.lessThan(n, msg?)`
@@ -133,6 +144,41 @@ k.boolean()
 ```
 
 - `.isTrue(msg?)`, `.isFalse(msg?)`, `.equals(bool, msg?)`
+
+### Primitive Schemas
+
+```typescript
+k.nan()        // only NaN
+k.null()       // only null
+k.undefined()  // only undefined
+k.void()       // null or undefined
+```
+
+```typescript
+k.nan().parse(NaN);           // OK
+k.null().parse(null);         // OK
+k.undefined().parse(undefined); // OK
+k.void().parse(null);         // OK
+k.void().parse(undefined);    // OK
+```
+
+### BigInt Schema
+
+```typescript
+k.bigint()
+  .min(0n)              .max(100n)
+  .positive()           .negative()
+  .nonnegative()        .nonpositive()
+  .between(10n, 20n)    .multipleOf(5n)
+  .equals(0n)           .oneOf([1n, 2n, 3n])
+  .notOneOf([-1n, -2n])
+```
+
+- `.min(n, msg?)`, `.max(n, msg?)`, `.equals(n, msg?)`
+- `.positive(msg?)`, `.negative(msg?)`
+- `.nonnegative(msg?)`, `.nonpositive(msg?)`
+- `.between(min, max, msg?)`, `.multipleOf(n, msg?)`
+- `.oneOf(arr, msg?)`, `.notOneOf(arr, msg?)`
 
 ### Object Schema
 
@@ -185,15 +231,14 @@ const newSchema = k.object({
 
 ```typescript
 k.array(k.string())
-  .minLength(1)
-  .maxLength(10)
-  .length(5)
-  .notEmpty()
-  .unique()
-  .contains('required-item')
+  .minLength(1)         .maxLength(10)
+  .length(5)            .min(1)
+  .max(10)              .notEmpty()
+  .unique()             .contains('required-item')
 ```
 
 - `.minLength(n, msg?)`, `.maxLength(n, msg?)`, `.length(n, msg?)`
+- `.min(n, msg?)`, `.max(n, msg?)` (aliases for minLength/maxLength)
 - `.notEmpty(msg?)`, `.unique(msg?)`
 - `.contains(element, msg?)`
 
@@ -292,11 +337,6 @@ const stringOrNumber = k.union([k.string(), k.number()]);
 stringOrNumber.parse("hello"); // OK
 stringOrNumber.parse(42);      // OK
 stringOrNumber.parse(true);    // Error
-
-// Discriminated unions
-const catSchema = k.object({ type: k.literal('cat'), meow: k.boolean() });
-const dogSchema = k.object({ type: k.literal('dog'), bark: k.boolean() });
-const animalSchema = k.union([catSchema, dogSchema]);
 ```
 
 ### Intersection Schema
@@ -306,6 +346,21 @@ const withId = k.object({ id: k.number() });
 const withName = k.object({ name: k.string() });
 const combined = k.intersection([withId, withName]);
 // Must have: id AND name
+```
+
+### Discriminated Union Schema
+
+Validates tagged unions with O(1) dispatch by a discriminator key. Performs better than regular unions on large schemas.
+
+```typescript
+const animalSchema = k.discriminatedUnion("type", {
+  cat: k.object({ type: k.literal("cat"), meow: k.boolean() }),
+  dog: k.object({ type: k.literal("dog"), bark: k.boolean() })
+});
+
+animalSchema.parse({ type: "cat", meow: true });     // OK
+animalSchema.parse({ type: "dog", bark: false });     // OK
+animalSchema.parse({ type: "fish", swim: true });     // Error: invalid discriminator
 ```
 
 ### Literal and Enum
@@ -340,6 +395,58 @@ const userMap = k.record(k.object({
   name: k.string(),
   age: k.number()
 }));
+```
+
+### Promise Schema
+
+```typescript
+k.promise()                // validates input is a Promise
+k.promise(k.number())      // also validates resolved value
+```
+
+```typescript
+const acceptsPromise = k.promise(k.string());
+const result = acceptsPromise.parse(Promise.resolve("hello"));
+// Returns Promise<string> that resolves to "hello"
+```
+
+### Set Schema
+
+```typescript
+k.set()                  // validates input is a Set
+k.set(k.number())        // validates each element
+```
+
+```typescript
+const numberSet = k.set(k.number().positive());
+numberSet.parse(new Set([1, 2, 3])); // OK
+numberSet.parse(new Set([1, -2]));   // Error: invalid element
+```
+
+### Map Schema
+
+```typescript
+k.map()                        // validates input is a Map
+k.map(k.string(), k.number())  // validates keys and values
+```
+
+```typescript
+const scoreMap = k.map(k.string(), k.number());
+scoreMap.parse(new Map([["alice", 100], ["bob", 85]])); // OK
+```
+
+### Branded Types
+
+Add nominal typing to existing schemas. The brand is a compile-time type construct stored as `__brand` on objects:
+
+```typescript
+const userId = k.string().brand("UserId");
+const postId = k.string().brand("PostId");
+
+function getUser(id: kataxInfer<typeof userId>) { /* ... */ }
+
+getUser(userId.parse("abc"));  // OK
+getUser(postId.parse("xyz"));  // TypeScript error
 ```
 
 ### Custom Schema
@@ -410,9 +517,13 @@ All schemas support these chainable modifiers:
 ```typescript
 k.string().optional()         // T | undefined
 k.string().nullable()         // T | null
+k.string().nullish()          // T | null | undefined
 k.string().default('fallback') // return default if undefined
-k.string().transform(s => s.toUpperCase()) // transform output type
 k.string().catch('fallback')  // return fallback on validation failure
+k.string().transform(s => s.toUpperCase()) // transform output type
+k.string().brand('UserId')    // nominal typing (T & { __brand: B })
+k.string().refine(v => v.length > 0) // custom refinement
+k.string().asyncRefine(async v => []) // async refinement
 ```
 
 ## Type Coercion
@@ -457,7 +568,8 @@ k.coerce.string()
 k.coerce.string().email().minLength(5)
 
 // Proxy methods: minLength, maxLength, email, url, regex, trim,
-//                lowercase, uppercase, oneOf, startsWith, endsWith, uuid
+//                lowercase, uppercase, oneOf, startsWith, endsWith, uuid,
+//                datetime, jwt, cuid2, ulid, emoji, cidr
 
 k.coerce.string().parse(123);    // "123"
 k.coerce.string().parse(true);   // "true"
@@ -643,13 +755,13 @@ try {
 ## Error Utilities
 
 ```typescript
-import { createIssue, issues, mergeIssues, isIssueArray, KataxError } from 'katax-core';
+import { createIssue, issues, mergeIssues, isIssueArray, describeReceived, KataxError } from 'katax-core';
 
 // Create a single issue
-const issue = createIssue('name', 'Name is required');
+const issue = createIssue(['name'], 'Name is required');
 
 // Create issues array
-const errs = issues('name', 'Name is required');
+const errs = issues(['name'], 'Name is required');
 
 // Merge multiple issue arrays
 const allIssues = mergeIssues(...issueArrays);
@@ -658,6 +770,21 @@ const allIssues = mergeIssues(...issueArrays);
 if (isIssueArray(value)) {
   // handle issues
 }
+
+// Describe a value's type for error messages
+describeReceived(null);       // "null"
+describeReceived(undefined);  // "undefined"
+describeReceived([]);         // "array"
+describeReceived("hi");       // "string"
+```
+
+Common pattern — use inside `asyncRefine` or custom validators:
+
+```typescript
+const schema = k.string().asyncRefine(async (value, path) => {
+  const exists = await db.users.exists({ email: value });
+  return exists ? issues(path, 'Email already registered') : [];
+});
 ```
 
 ## TypeScript Integration
@@ -703,9 +830,7 @@ interface ValidationResult {
   issues: Issue[]
 }
 
-type AsyncSafeParseResult<T> =
-  | { success: true; data: T }
-  | { success: false; issues: Issue[] }
+type AsyncSafeParseResult<T> = SafeParseResult<T>
 
 interface AsyncValidationResult {
   valid: boolean
@@ -724,6 +849,11 @@ const k = {
   string(): StringSchema
   number(): NumberSchema
   boolean(): BooleanSchema
+  bigint(): BigIntSchema
+  nan(): NanSchema
+  null(): NullSchema
+  undefined(): UndefinedSchema
+  void(): VoidSchema
   object<T>(shape): ObjectSchema<T>
   date(): DateSchema
   twoDates(separator?): TwoDatesSchema   // default: '|'
@@ -731,7 +861,11 @@ const k = {
   file(): FileSchema
   base64(): Base64Schema
   email(): EmailSchema
+  promise<T>(schema?): PromiseSchema<T>
+  set<T>(valueSchema?): SetSchema<T>
+  map<K, V>(keySchema?, valueSchema?): MapSchema<K, V>
   union<T>(schemas): UnionSchema<T>
+  discriminatedUnion<K, R>(key, schemasMap): DiscriminatedUnionSchema<K, R>
   intersection<T>(schemas): IntersectionSchema<T>
   lazy<T>(resolver): LazySchema<T>
   custom<T>(validator): CustomSchema<T>
@@ -750,6 +884,9 @@ const k = {
   }
   preprocess<T>(preprocessor, schema): PreprocessSchema<T>
 }
+
+// All schemas support:
+schema.brand<B>(name): BrandedSchema<T, B>  // nominal typing
 ```
 
 ## License

@@ -1,5 +1,5 @@
 import { BaseSchema } from "../../core/BaseSchema";
-import { Issue } from "../../core/result";
+import { Issue, describeReceived } from "../../core/result";
 
 // Multer file structure (compatible with Express.Multer.File)
 // Defined inline to avoid requiring @types/express as peer dependency
@@ -66,7 +66,7 @@ export class FileSchema extends BaseSchema<File | MulterFile> {
     }
 
     if (!fileAdapter) {
-      return [{ path, message: "Expected File object or file upload" }];
+      return [{ path, message: `Expected File object or file upload, received ${describeReceived(input)}` }];
     }
 
     const issues: Issue[] = [];

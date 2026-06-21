@@ -1,5 +1,5 @@
 import { BaseSchema } from "../../core/BaseSchema"
-import { Issue } from "../../core/result"
+import { Issue, describeReceived } from "../../core/result"
 
 type ValidationRule = {
   check: (value: string) => boolean
@@ -11,7 +11,7 @@ export class Base64Schema extends BaseSchema<string> {
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | string {
     if (typeof input !== "string") {
-      return [{ path, message: "Expected string" }]
+      return [{ path, message: `Expected string, received ${describeReceived(input)}` }]
     }
 
     // Basic base64 validation

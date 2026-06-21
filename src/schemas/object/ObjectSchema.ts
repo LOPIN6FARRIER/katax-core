@@ -1,4 +1,4 @@
-import { BaseSchema } from "../../core/BaseSchema"
+import { BaseSchema, OptionalSchema } from "../../core/BaseSchema"
 import type { AsyncValidator } from "../../core/AsyncResult"
 import { Issue, describeReceived } from "../../core/result"
 
@@ -33,7 +33,7 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
     }
 
     // Validate each field in the shape
-    for (const key in this.shape) {
+    for (const key of Object.keys(this.shape)) {
       const fieldSchema = this.shape[key]
       let fieldValue: unknown
 
@@ -84,7 +84,7 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
     const allIssues: Issue[] = []
     
     // Run async validation on each field that has async validators
-    for (const key in this.shape) {
+    for (const key of Object.keys(this.shape)) {
       const fieldSchema = this.shape[key]
       const fieldValue = (value as any)[key]
       const fieldPath = [...path, key]
@@ -110,7 +110,7 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
   }
 
   protected _hasAsyncValidationNested(): boolean {
-    for (const key in this.shape) {
+    for (const key of Object.keys(this.shape)) {
       if (this.shape[key].hasAsyncValidation()) {
         return true
       }
@@ -133,12 +133,12 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
   }
 
   // Method to make specific fields optional
-  partial(): ObjectSchema<ObjectShape> {
-    const partialShape: ObjectShape = {}
-    for (const key in this.shape) {
-      partialShape[key] = this.shape[key].optional()
+  partial(): ObjectSchema<{ [K in keyof T]: OptionalSchema<InferObjectShape<T>[K]> }> {
+    const partialShape = {} as { [K in keyof T]: OptionalSchema<InferObjectShape<T>[K]> }
+    for (const key of Object.keys(this.shape)) {
+      (partialShape as any)[key] = this.shape[key].optional()
     }
-    const result = new ObjectSchema(partialShape)
+    const result = new ObjectSchema(partialShape as any)
     result.caseSensitive = this.caseSensitive
     result._asyncValidators = [...this._asyncValidators] as AsyncValidator<any>[]
     return result
@@ -146,9 +146,9 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
 
   // Pick specific keys
   pick<K extends keyof T>(keys: K[]): ObjectSchema<Pick<T, K>> {
-    const pickedShape: Partial<T> = {}
+    const pickedShape: Record<string, BaseSchema<any>> = {}
     for (const key of keys) {
-      pickedShape[key] = this.shape[key]
+      pickedShape[key as string] = this.shape[key]
     }
     const result = new ObjectSchema(pickedShape as Pick<T, K>)
     result.caseSensitive = this.caseSensitive
@@ -158,8 +158,8 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
 
   // Omit specific keys
   omit<K extends keyof T>(keys: K[]): ObjectSchema<Omit<T, K>> {
-    const omittedShape: Partial<T> = {}
-    for (const key in this.shape) {
+    const omittedShape: Record<string, BaseSchema<any>> = {}
+    for (const key of Object.keys(this.shape)) {
       if (!keys.includes(key as unknown as K)) {
         omittedShape[key] = this.shape[key]
       }
@@ -229,7 +229,7 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<InferObjectS
    * ```
    */
   getShape(): T {
-    return this.shape
+    return { ...this.shape }
   }
 
   /**
@@ -303,7 +303,7 @@ class PassthroughObjectSchema<T extends ObjectShape> extends ObjectSchema<T> {
     const processedKeys = new Set<string>()
 
     // Validate each field in the shape
-    for (const key in this.shape) {
+    for (const key of Object.keys(this.shape)) {
       const fieldSchema = this.shape[key]
       let fieldValue: unknown
       let originalKey: string = key

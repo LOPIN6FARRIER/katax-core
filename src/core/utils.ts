@@ -1,30 +1,6 @@
 import { Issue } from "./result"
 
 /**
- * Fast check if a value is an array of Issues.
- * Uses a Symbol marker for O(1) detection when possible.
- */
-const ISSUE_MARKER = Symbol.for('katax.issue')
-
-/**
- * Check if a result is an Issue array.
- * Optimized for performance with early returns.
- */
-export function isIssueArray(result: unknown): result is Issue[] {
-  // Fast path: empty arrays are not issues
-  if (!Array.isArray(result) || result.length === 0) {
-    return false
-  }
-
-  // Check first element only (all issues should have same shape)
-  const first = result[0]
-  return typeof first === 'object' &&
-    first !== null &&
-    'path' in first &&
-    'message' in first
-}
-
-/**
  * Create an issue with the given path and message.
  * Helper for cleaner code.
  */

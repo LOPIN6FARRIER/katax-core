@@ -10,6 +10,11 @@ import { email } from "./schemas/email/email"
 import { union } from "./schemas/union/union"
 import { intersection } from "./schemas/intersection/intersection"
 import { lazy } from "./schemas/lazy/lazy"
+import { bigint } from "./schemas/bigint/bigint"
+import { nan, undef, nil, voidSchema } from "./schemas/primitive/primitives"
+import { promise } from "./schemas/promise/promise"
+import { set as setSchema, map } from "./schemas/collection/collection"
+import { discriminatedUnion } from "./schemas/discriminated-union/discriminatedUnion"
 import { coerce } from "./schemas/coerce/CoerceSchemas"
 import { preprocess } from "./schemas/preprocess/preprocess"
 import {
@@ -95,6 +100,24 @@ export const k = {
   tuple,
   /** Create a record schema for objects with uniform value types */
   record,
+  /** Create a bigint validation schema */
+  bigint,
+  /** Create a NaN validation schema */
+  nan,
+  /** Create an undefined validation schema */
+  undefined: undef,
+  /** Create a null validation schema */
+  null: nil,
+  /** Create a void validation schema (accepts null or undefined) */
+  void: voidSchema,
+  /** Create a Promise validation schema */
+  promise,
+  /** Create a Set validation schema */
+  set: setSchema,
+  /** Create a Map validation schema */
+  map,
+  /** Create a discriminated union schema for tagged unions */
+  discriminatedUnion,
   /** Coercion schemas that auto-convert types before validation */
   coerce,
   /** Preprocess input before validation */
