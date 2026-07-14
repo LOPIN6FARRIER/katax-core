@@ -63,3 +63,21 @@ describe("k.discriminatedUnion()", () => {
     expect(statusSchema.safeParse({ status: "active", lastLogin: new Date() }).success).toBe(true)
   })
 })
+
+describe("toJsonSchema()", () => {
+  it("returns oneOf", () => {
+    const schema = k.discriminatedUnion("type", {
+      string: k.object({ type: k.literal("string"), value: k.string() }),
+      number: k.object({ type: k.literal("number"), value: k.number() })
+    })
+    const json = schema.toJsonSchema()
+    expect(json).toHaveProperty("oneOf")
+    expect(json.oneOf).toHaveLength(2)
+  })
+  it("includes description", () => {
+    const schema = k.discriminatedUnion("type", {
+      a: k.object({ type: k.literal("a") })
+    }).describe("discriminated")
+    expect(schema.toJsonSchema().description).toBe("discriminated")
+  })
+})

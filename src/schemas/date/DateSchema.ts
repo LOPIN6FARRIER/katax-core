@@ -1,5 +1,6 @@
 import { BaseSchema } from "../../core/BaseSchema"
 import { Issue, isIssueArray, describeReceived } from "../../core/result"
+import type { JsonSchema } from "../../core/schema.types"
 import {
   isValid,
   parseISO,
@@ -18,6 +19,11 @@ type ValidationRule = {
 
 export class DateSchema extends BaseSchema<Date> {
   private rules: ValidationRule[] = []
+
+  constructor() {
+    super()
+    this._jsonSchema = { type: "string", format: "date-time" }
+  }
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | Date {
     let date: Date
@@ -54,7 +60,12 @@ export class DateSchema extends BaseSchema<Date> {
     const cloned = new DateSchema()
     cloned.rules = [...this.rules]
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
+  }
+
+  toJsonSchema(): JsonSchema {
+    return { ...this._jsonSchema } as JsonSchema
   }
 
   min(minDate: string, message?: string): this {

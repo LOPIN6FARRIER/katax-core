@@ -86,3 +86,22 @@ describe("k.map()", () => {
     }
   })
 })
+
+describe("toJsonSchema()", () => {
+  describe("k.set()", () => {
+    it("returns array with uniqueItems", () => {
+      const schema = k.set(k.number())
+      expect(schema.toJsonSchema()).toEqual({ type: "array", uniqueItems: true, items: { type: "number" } })
+    })
+    it("includes description", () => {
+      const schema = k.set(k.string()).describe("tag set")
+      expect(schema.toJsonSchema().description).toBe("tag set")
+    })
+  })
+  describe("k.map()", () => {
+    it("returns object with additionalProperties", () => {
+      const schema = k.map(k.string(), k.number())
+      expect(schema.toJsonSchema()).toEqual({ type: "object", additionalProperties: { type: "number" } })
+    })
+  })
+})

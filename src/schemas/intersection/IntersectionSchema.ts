@@ -1,5 +1,6 @@
 import { BaseSchema } from "../../core/BaseSchema"
 import { Issue, isIssueArray } from "../../core/result"
+import type { JsonSchema } from "../../core/schema.types"
 
 type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends ((k: infer I) => void) ? I : never
 type IntersectionResult<T extends BaseSchema<any>[]> = UnionToIntersection<T[number] extends BaseSchema<infer U> ? U : never>
@@ -64,9 +65,17 @@ export class IntersectionSchema<T extends BaseSchema<any>[]> extends BaseSchema<
     return nonObjectResult as IntersectionResult<T>
   }
 
+  toJsonSchema(): JsonSchema {
+    return {
+      ...this._jsonSchema,
+      allOf: this.schemas.map((s) => s.toJsonSchema()),
+    }
+  }
+
   protected _clone(): IntersectionSchema<T> {
     const cloned = new IntersectionSchema([...this.schemas] as T)
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
   }
 

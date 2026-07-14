@@ -87,3 +87,24 @@ describe("primitive schemas", () => {
     })
   })
 })
+
+describe("toJsonSchema()", () => {
+  it("k.nan() returns json schema", () => {
+    expect(k.nan().toJsonSchema()).toEqual({ type: "number" })
+  })
+  it("k.undefined() returns json schema", () => {
+    expect(k.undefined().toJsonSchema()).toEqual({})
+  })
+  it("k.null() returns json schema", () => {
+    expect(k.null().toJsonSchema()).toEqual({ type: "null" })
+  })
+  it("k.void() returns json schema", () => {
+    expect(k.void().toJsonSchema()).toEqual({ type: "null" })
+  })
+  it("describe() adds description to nan schema", () => {
+    expect(k.nan().describe("not a number").toJsonSchema()).toEqual({ type: "number", description: "not a number" })
+  })
+  it("describe() adds description to null schema", () => {
+    expect(k.null().describe("null value").toJsonSchema()).toEqual({ type: "null", description: "null value" })
+  })
+})

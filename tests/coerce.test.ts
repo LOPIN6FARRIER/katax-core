@@ -186,3 +186,28 @@ describe('k.coerce.date() proxy methods', () => {
     expect(s.safeParse('not-a-date').success).toBe(false)
   })
 })
+
+describe('toJsonSchema() for coerced schemas', () => {
+  it('k.coerce.number() delegates to number schema', () => {
+    expect(k.coerce.number().toJsonSchema()).toEqual({ type: 'number' })
+  })
+  it('k.coerce.boolean() returns boolean schema', () => {
+    expect(k.coerce.boolean().toJsonSchema()).toEqual({ type: 'boolean' })
+  })
+  it('k.coerce.string() delegates to string schema', () => {
+    expect(k.coerce.string().toJsonSchema()).toEqual({ type: 'string' })
+  })
+  it('k.coerce.date() returns date-time format', () => {
+    expect(k.coerce.date().toJsonSchema()).toEqual({ type: 'string', format: 'date-time' })
+  })
+  it('k.coerce.number() includes constraints from chain', () => {
+    expect(k.coerce.number().positive().min(5).describe('coerced').toJsonSchema()).toEqual({
+      type: 'number',
+      minimum: 5,
+      description: 'coerced'
+    })
+  })
+  it('k.preprocess() delegates to inner schema', () => {
+    expect(k.preprocess(v => String(v), k.number()).toJsonSchema()).toEqual({ type: 'number' })
+  })
+})

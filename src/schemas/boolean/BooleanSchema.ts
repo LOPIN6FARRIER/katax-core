@@ -1,5 +1,6 @@
 import { BaseSchema } from "../../core/BaseSchema"
 import { Issue, describeReceived } from "../../core/result"
+import type { JsonSchema } from "../../core/schema.types"
 
 type ValidationRule = {
   check: (value: boolean) => boolean
@@ -8,6 +9,13 @@ type ValidationRule = {
 
 export class BooleanSchema extends BaseSchema<boolean> {
   private rules: ValidationRule[] = []
+
+  constructor() {
+    super()
+    this._jsonSchema = {
+      type: "boolean",
+    }
+  }
 
    _parse(input: unknown, path: Issue["path"]): Issue[] | boolean {
     if (typeof input !== "boolean") {
@@ -32,6 +40,7 @@ export class BooleanSchema extends BaseSchema<boolean> {
     const cloned = new BooleanSchema()
     cloned.rules = [...this.rules]
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
   }
 
@@ -62,5 +71,9 @@ export class BooleanSchema extends BaseSchema<boolean> {
     return clone
   }
 
-
+  toJsonSchema(): JsonSchema {
+    return {
+      ...this._jsonSchema,
+    } as JsonSchema
+  }
 }

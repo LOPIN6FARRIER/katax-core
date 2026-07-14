@@ -1,5 +1,6 @@
 import { BaseSchema } from "../../core/BaseSchema"
 import { Issue, describeReceived } from "../../core/result"
+import type { JsonSchema } from "../../core/schema.types"
 
 type ValidationRule = {
   check: (value: string) => boolean
@@ -8,6 +9,11 @@ type ValidationRule = {
 
 export class Base64Schema extends BaseSchema<string> {
   private rules: ValidationRule[] = []
+
+  constructor() {
+    super()
+    this._jsonSchema = { type: "string", contentEncoding: "base64" }
+  }
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | string {
     if (typeof input !== "string") {
@@ -37,7 +43,12 @@ export class Base64Schema extends BaseSchema<string> {
     const cloned = new Base64Schema()
     cloned.rules = [...this.rules]
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
+  }
+
+  toJsonSchema(): JsonSchema {
+    return { ...this._jsonSchema } as JsonSchema
   }
 
   // Validate minimum decoded size

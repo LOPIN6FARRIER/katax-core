@@ -26,6 +26,8 @@ A lightweight and extensible schema validation library for TypeScript/JavaScript
 - **Chaining API** for clean and readable validation rules
 - **Multiple error reporting** - get all validation errors at once
 - **Transform support** - validate and transform data in one step
+- **JSON Schema Draft 2020-12 output** - generate JSON Schema via `.toJsonSchema()`
+- **Schema descriptions** - add descriptions via `.describe()` that persist through chaining and composition
 - **Recursive schemas** - support for self-referencing types
 - **Minimal dependencies** (only `date-fns`)
 - **Browser and Node.js** compatible
@@ -525,6 +527,83 @@ k.string().brand('UserId')    // nominal typing (T & { __brand: B })
 k.string().refine(v => v.length > 0) // custom refinement
 k.string().asyncRefine(async v => []) // async refinement
 ```
+
+## JSON Schema Output
+
+Generate JSON Schema Draft 2020-12 from any schema using `toJsonSchema()`:
+
+```typescript
+import { k } from 'katax-core';
+
+const schema = k.object({
+  name: k.string().minLength(2).describe("User's full name"),
+  email: k.string().email(),
+  age: k.number().min(18).max(120).describe("Age in years"),
+  role: k.enum(['admin', 'user']).default('user')
+});
+
+const jsonSchema = schema.toJsonSchema();
+// {
+//   type: "object",
+//   properties: {
+//     name: { type: "string", minLength: 2, description: "User's full name" },
+//     email: { type: "string", format: "email" },
+//     age: { type: "number", minimum: 18, maximum: 120, description: "Age in years" },
+//     role: { enum: ["admin", "user"], default: "user" }
+//   },
+//   required: ["name", "email", "age"]
+// }
+```
+
+### .describe(description)
+
+All schemas support `.describe()` for adding human-readable descriptions that appear in the generated JSON Schema:
+
+```typescript
+k.string().describe("A username")
+k.number().min(0).describe("Item count")
+```
+
+Descriptions persist through chaining, composition, and object schema transformations:
+
+```typescript
+const schema = k.object({ id: k.number() })
+  .describe("User profile")
+  .partial()
+  .pick(['id']);
+
+schema.toJsonSchema().description // "User profile"
+```
+
+### Supported JSON Schema mappings
+
+| Schema | JSON Schema |
+|--------|------------|
+| `k.string()` | `{ type: "string" }` |
+| `k.string().email()` | `{ type: "string", format: "email" }` |
+| `k.number()` | `{ type: "number" }` |
+| `k.number().min(5).max(10)` | `{ type: "number", minimum: 5, maximum: 10 }` |
+| `k.number().greaterThan(5).lessThan(10)` | `{ type: "number", exclusiveMinimum: 5, exclusiveMaximum: 10 }` |
+| `k.boolean()` | `{ type: "boolean" }` |
+| `k.bigint()` | `{ type: "integer" }` |
+| `k.null()` | `{ type: "null" }` |
+| `k.nan()` | `{ type: "number" }` |
+| `k.date()` | `{ type: "string", format: "date-time" }` |
+| `k.base64()` | `{ type: "string", contentEncoding: "base64" }` |
+| `k.array(T)` | `{ type: "array", items: { ... } }` |
+| `k.object({...})` | `{ type: "object", properties: {...}, required: [...] }` |
+| `k.tuple([A, B])` | `{ type: "array", prefixItems: [{...}, {...}], items: false }` |
+| `k.record(T)` | `{ type: "object", additionalProperties: { ... } }` |
+| `k.set(T)` | `{ type: "array", uniqueItems: true, items: { ... } }` |
+| `k.map(K, V)` | `{ type: "object", additionalProperties: { ... } }` |
+| `k.literal(v)` | `{ const: v }` |
+| `k.enum([...])` | `{ enum: [...] }` |
+| `k.never()` | `{ not: {} }` |
+| `k.union([...])` | `{ anyOf: [...] }` |
+| `k.intersection([...])` | `{ allOf: [...] }` |
+| `k.discriminatedUnion(...)` | `{ oneOf: [...] }` |
+| `.default(v)` | adds `default: v` |
+| `.describe(s)` | adds `description: s` |
 
 ## Type Coercion
 

@@ -48,7 +48,8 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepublishOnly": "npm run build && npm test"
+    "prepublishOnly": "npm run build && npm test",
+    "test-jsonschema": "vitest tests/jsonschema.test.ts"
   },
   "devDependencies": {
     "@types/node": "^25.1.0",

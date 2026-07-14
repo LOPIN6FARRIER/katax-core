@@ -144,4 +144,55 @@ describe('NumberSchema', () => {
       expect(k.number().nonpositive().safeParse(5).success).toBe(false)
     })
   })
+
+  describe('toJsonSchema()', () => {
+    it('returns { type: "number" }', () => {
+      expect(k.number().toJsonSchema()).toEqual({ type: 'number' })
+    })
+
+    it('respects min().max()', () => {
+      expect(k.number().min(5).max(10).toJsonSchema()).toEqual({ type: 'number', minimum: 5, maximum: 10 })
+    })
+
+    it('respects greaterThan().lessThan().multipleOf()', () => {
+      expect(k.number().greaterThan(5).lessThan(10).multipleOf(2).toJsonSchema()).toEqual({
+        type: 'number',
+        exclusiveMinimum: 5,
+        exclusiveMaximum: 10,
+        multipleOf: 2,
+      })
+    })
+
+    it('positive() and negative() do not modify JSON Schema', () => {
+      const schema = k.number().positive().negative()
+      expect(schema.toJsonSchema()).toEqual({ type: 'number' })
+    })
+
+    it('between() does not modify JSON Schema', () => {
+      expect(k.number().between(5, 10).toJsonSchema()).toEqual({ type: 'number' })
+    })
+
+    it('integer() does not affect JSON Schema type', () => {
+      expect(k.number().integer().toJsonSchema()).toEqual({ type: 'number' })
+    })
+
+    it('includes description from describe()', () => {
+      expect(k.number().describe('a number').toJsonSchema()).toEqual({ type: 'number', description: 'a number' })
+    })
+
+    it('describe() returns a new instance with description set', () => {
+      const schema = k.number()
+      const result = schema.describe('desc')
+      expect(result).not.toBe(schema)
+      expect(result.toJsonSchema()).toEqual({ type: 'number', description: 'desc' })
+    })
+
+    it('describe persists through _clone', () => {
+      expect(k.number().min(1).describe('x').positive().toJsonSchema()).toEqual({
+        type: 'number',
+        minimum: 1,
+        description: 'x',
+      })
+    })
+  })
 })

@@ -54,4 +54,14 @@ describe('FileSchema', () => {
     expect(s.safeParse(makeMulterFile({ originalname: 'photo.png' })).success).toBe(true)
     expect(s.safeParse(makeMulterFile({ originalname: 'photo.gif' })).success).toBe(false)
   })
+
+  it('toJsonSchema() returns empty object', () => {
+    const result = k.file().toJsonSchema()
+    expect(result).toEqual({})
+  })
+
+  it('toJsonSchema() with describe() includes description', () => {
+    const result = k.file().describe('upload').toJsonSchema()
+    expect(result).toEqual({ description: 'upload' })
+  })
 })

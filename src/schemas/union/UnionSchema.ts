@@ -1,5 +1,6 @@
 import { BaseSchema } from "../../core/BaseSchema"
 import { Issue, isIssueArray } from "../../core/result"
+import type { JsonSchema } from "../../core/schema.types"
 
 type UnionToTuple<T> = T extends BaseSchema<infer U> ? U : never
 
@@ -49,9 +50,17 @@ export class UnionSchema<T extends BaseSchema<any>[]> extends BaseSchema<UnionTo
     }]
   }
 
+  toJsonSchema(): JsonSchema {
+    return {
+      ...this._jsonSchema,
+      anyOf: this.schemas.map((s) => s.toJsonSchema()),
+    }
+  }
+
   protected _clone(): UnionSchema<T> {
     const cloned = new UnionSchema([...this.schemas] as T)
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
   }
 

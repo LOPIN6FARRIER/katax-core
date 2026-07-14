@@ -1,5 +1,6 @@
 import { BaseSchema } from "../../core/BaseSchema"
 import { Issue } from "../../core/result"
+import type { JsonSchema } from "../../core/schema.types"
 import { NumberSchema } from "../number/NumberSchema"
 import { BooleanSchema } from "../boolean/BooleanSchema"
 import { StringSchema } from "../string/StringSchema"
@@ -49,10 +50,18 @@ export class CoercedNumberSchema extends BaseSchema<number> {
     return this.innerSchema._parse(coerced, path)
   }
 
+  toJsonSchema(): JsonSchema {
+    return {
+      ...this._jsonSchema,
+      ...this.innerSchema.toJsonSchema(),
+    }
+  }
+
   protected _clone(): CoercedNumberSchema {
     const cloned = new CoercedNumberSchema()
     cloned.innerSchema = this.innerSchema
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
   }
 
@@ -182,10 +191,18 @@ export class CoercedBooleanSchema extends BaseSchema<boolean> {
     return this.innerSchema._parse(coerced, path)
   }
 
+  toJsonSchema(): JsonSchema {
+    return {
+      ...this._jsonSchema,
+      type: "boolean",
+    }
+  }
+
   protected _clone(): CoercedBooleanSchema {
     const cloned = new CoercedBooleanSchema()
     cloned.innerSchema = this.innerSchema
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
   }
 
@@ -240,10 +257,18 @@ export class CoercedStringSchema extends BaseSchema<string> {
     return this.innerSchema._parse(coerced, path)
   }
 
+  toJsonSchema(): JsonSchema {
+    return {
+      ...this._jsonSchema,
+      ...this.innerSchema.toJsonSchema(),
+    }
+  }
+
   protected _clone(): CoercedStringSchema {
     const cloned = new CoercedStringSchema()
     cloned.innerSchema = this.innerSchema
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
   }
 
@@ -454,10 +479,19 @@ export class CoercedDateSchema extends BaseSchema<Date> {
     return date
   }
 
+  toJsonSchema(): JsonSchema {
+    return {
+      ...this._jsonSchema,
+      type: "string",
+      format: "date-time",
+    }
+  }
+
   protected _clone(): CoercedDateSchema {
     const cloned = new CoercedDateSchema()
     cloned.rules = [...this.rules]
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
   }
 

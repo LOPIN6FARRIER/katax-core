@@ -1,5 +1,6 @@
 import { BaseSchema } from "../../core/BaseSchema"
 import { Issue, describeReceived, isIssueArray } from "../../core/result"
+import type { JsonSchema } from "../../core/schema.types"
 
 type DiscriminatedUnionOutput<R extends Record<string, BaseSchema<any>>> = {
   [P in keyof R]: R[P] extends BaseSchema<infer T> ? T : never
@@ -31,9 +32,17 @@ export class DiscriminatedUnionSchema<K extends string, R extends Record<string,
     return schema._parse(input, path) as DiscriminatedUnionOutput<R>
   }
 
+  toJsonSchema(): JsonSchema {
+    return {
+      ...this._jsonSchema,
+      oneOf: Object.values(this.schemasMap).map((s) => s.toJsonSchema()),
+    }
+  }
+
   protected _clone(): DiscriminatedUnionSchema<K, R> {
     const cloned = new DiscriminatedUnionSchema(this.key, { ...this.schemasMap })
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
   }
 

@@ -90,3 +90,30 @@ describe('chaining: default after validations', () => {
     expect(s.safeParse(8080).success).toBe(true)
   })
 })
+
+describe('toJsonSchema()', () => {
+  it('includes default value in json schema', () => {
+    const schema = k.string().default('hello')
+    expect(schema.toJsonSchema()).toEqual({
+      type: 'string',
+      default: 'hello'
+    })
+  })
+  it('includes default with constraints', () => {
+    const schema = k.number().min(0).max(100).default(50)
+    expect(schema.toJsonSchema()).toEqual({
+      type: 'number',
+      minimum: 0,
+      maximum: 100,
+      default: 50
+    })
+  })
+  it('includes description with default', () => {
+    const schema = k.string().default('world').describe('greeting')
+    expect(schema.toJsonSchema()).toEqual({
+      type: 'string',
+      default: 'world',
+      description: 'greeting'
+    })
+  })
+})

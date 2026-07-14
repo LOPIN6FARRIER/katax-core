@@ -1,5 +1,6 @@
 import { BaseSchema } from "../../core/BaseSchema"
 import { Issue } from "../../core/result"
+import type { JsonSchema } from "../../core/schema.types"
 
 /**
  * Schema for lazy/deferred schema resolution.
@@ -38,10 +39,18 @@ export class LazySchema<T> extends BaseSchema<T> {
     return this.getSchema()._parse(input, path)
   }
 
+  toJsonSchema(): JsonSchema {
+    return {
+      ...this._jsonSchema,
+      ...this.getSchema().toJsonSchema(),
+    }
+  }
+
   protected _clone(): LazySchema<T> {
     const cloned = new LazySchema(this.resolver)
     cloned._cached = this._cached
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
   }
 

@@ -111,4 +111,19 @@ describe('EmailSchema', () => {
   it('nullable() accepts null', () => {
     expect(k.email().nullable().safeParse(null).success).toBe(true)
   })
+
+  it('toJsonSchema() returns string with email format', () => {
+    const result = k.email().toJsonSchema()
+    expect(result).toEqual({ type: 'string', format: 'email' })
+  })
+
+  it('toJsonSchema() with describe() includes description', () => {
+    const result = k.email().describe('user email').toJsonSchema()
+    expect(result).toEqual({ type: 'string', format: 'email', description: 'user email' })
+  })
+
+  it('toJsonSchema() domain() chain does not affect format', () => {
+    const result = k.email().domain('company.com').toJsonSchema()
+    expect(result).toEqual({ type: 'string', format: 'email' })
+  })
 })

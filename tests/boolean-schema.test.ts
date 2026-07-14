@@ -48,4 +48,14 @@ describe('BooleanSchema', () => {
     expect(k.boolean().nullable().safeParse(true).success).toBe(true)
     expect(k.boolean().nullable().safeParse('x').success).toBe(false)
   })
+
+  describe('toJsonSchema()', () => {
+    it('returns { type: "boolean" }', () => {
+      expect(k.boolean().toJsonSchema()).toEqual({ type: 'boolean' })
+    })
+
+    it('includes description from describe()', () => {
+      expect(k.boolean().describe('flag').toJsonSchema()).toEqual({ type: 'boolean', description: 'flag' })
+    })
+  })
 })

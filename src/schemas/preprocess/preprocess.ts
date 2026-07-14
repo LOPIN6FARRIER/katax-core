@@ -1,5 +1,6 @@
 import { BaseSchema } from "../../core/BaseSchema"
 import { Issue } from "../../core/result"
+import type { JsonSchema } from "../../core/schema.types"
 
 /**
  * Schema that preprocesses input before passing to the inner schema.
@@ -26,9 +27,17 @@ export class PreprocessSchema<T> extends BaseSchema<T> {
     return this._schema._parse(processed, path)
   }
 
+  toJsonSchema(): JsonSchema {
+    return {
+      ...this._jsonSchema,
+      ...this._schema.toJsonSchema(),
+    }
+  }
+
   protected _clone(): PreprocessSchema<T> {
     const cloned = new PreprocessSchema(this._preprocessor, this._schema)
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
   }
 

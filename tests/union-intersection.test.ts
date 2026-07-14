@@ -98,3 +98,31 @@ describe('IntersectionSchema', () => {
     expect(() => k.intersection([])).toThrow()
   })
 })
+
+describe('toJsonSchema()', () => {
+  describe('UnionSchema', () => {
+    it('returns anyOf', () => {
+      const schema = k.union([k.string(), k.number()])
+      expect(schema.toJsonSchema()).toEqual({
+        anyOf: [{ type: 'string' }, { type: 'number' }]
+      })
+    })
+    it('includes description', () => {
+      const schema = k.union([k.string(), k.number()]).describe('string or number')
+      expect(schema.toJsonSchema().description).toBe('string or number')
+    })
+  })
+  describe('IntersectionSchema', () => {
+    it('returns allOf', () => {
+      const a = k.object({ id: k.number() })
+      const b = k.object({ name: k.string() })
+      const schema = k.intersection([a, b])
+      expect(schema.toJsonSchema()).toEqual({
+        allOf: [
+          { type: 'object', properties: { id: { type: 'number' } }, required: ['id'] },
+          { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] }
+        ]
+      })
+    })
+  })
+})

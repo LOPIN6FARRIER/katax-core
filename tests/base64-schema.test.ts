@@ -38,4 +38,14 @@ describe('Base64Schema', () => {
     const s = k.base64()
     expect(s.safeParse('U29vbSByYWluIGluIFNwYWlu').success).toBe(true)
   })
+
+  it('toJsonSchema() returns string with base64 contentEncoding', () => {
+    const result = k.base64().toJsonSchema()
+    expect(result).toEqual({ type: 'string', contentEncoding: 'base64' })
+  })
+
+  it('toJsonSchema() with describe() includes description', () => {
+    const result = k.base64().describe('data').toJsonSchema()
+    expect(result).toEqual({ type: 'string', contentEncoding: 'base64', description: 'data' })
+  })
 })

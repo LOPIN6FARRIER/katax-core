@@ -128,3 +128,57 @@ describe('RecordSchema', () => {
     expect(s.safeParse(null).success).toBe(false)
   })
 })
+
+describe('toJsonSchema()', () => {
+  describe('LiteralSchema', () => {
+    it('returns const for string literal', () => {
+      expect(k.literal('hello').toJsonSchema()).toEqual({ const: 'hello' })
+    })
+    it('returns const for number literal', () => {
+      expect(k.literal(42).toJsonSchema()).toEqual({ const: 42 })
+    })
+    it('returns const for boolean literal', () => {
+      expect(k.literal(true).toJsonSchema()).toEqual({ const: true })
+    })
+    it('adds description', () => {
+      expect(k.literal('active').describe('status').toJsonSchema()).toEqual({ const: 'active', description: 'status' })
+    })
+  })
+  describe('EnumSchema', () => {
+    it('returns enum array', () => {
+      expect(k.enum(['a', 'b', 'c']).toJsonSchema()).toEqual({ enum: ['a', 'b', 'c'] })
+    })
+    it('adds description', () => {
+      expect(k.enum(['x', 'y']).describe('choices').toJsonSchema()).toEqual({ enum: ['x', 'y'], description: 'choices' })
+    })
+  })
+  describe('Any / Unknown / Never', () => {
+    it('k.any() returns empty schema', () => {
+      expect(k.any().toJsonSchema()).toEqual({})
+    })
+    it('k.unknown() returns empty schema', () => {
+      expect(k.unknown().toJsonSchema()).toEqual({})
+    })
+    it('k.never() returns not: {}', () => {
+      expect(k.never().toJsonSchema()).toEqual({ not: {} })
+    })
+  })
+  describe('TupleSchema', () => {
+    it('returns array with prefixItems', () => {
+      const schema = k.tuple([k.string(), k.number()])
+      expect(schema.toJsonSchema()).toEqual({
+        type: 'array',
+        prefixItems: [{ type: 'string' }, { type: 'number' }],
+        items: false,
+        minItems: 2,
+        maxItems: 2
+      })
+    })
+  })
+  describe('RecordSchema', () => {
+    it('returns object with additionalProperties', () => {
+      const schema = k.record(k.string())
+      expect(schema.toJsonSchema()).toEqual({ type: 'object', additionalProperties: { type: 'string' } })
+    })
+  })
+})

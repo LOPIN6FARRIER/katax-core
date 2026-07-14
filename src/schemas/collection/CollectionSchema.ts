@@ -1,5 +1,6 @@
 import { BaseSchema } from "../../core/BaseSchema"
 import { Issue, describeReceived, isIssueArray } from "../../core/result"
+import type { JsonSchema } from "../../core/schema.types"
 
 type SetValidationRule<T> = {
   check: (value: Set<T>) => boolean
@@ -10,6 +11,11 @@ export class SetSchema<T> extends BaseSchema<Set<T>> {
   private rules: SetValidationRule<T>[] = []
   constructor(private valueSchema?: BaseSchema<T>) {
     super()
+    this._jsonSchema = {
+      type: "array",
+      uniqueItems: true,
+      items: valueSchema?.toJsonSchema(),
+    }
   }
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | Set<T> {
@@ -45,10 +51,15 @@ export class SetSchema<T> extends BaseSchema<Set<T>> {
     return validated
   }
 
+  toJsonSchema(): JsonSchema {
+    return { ...this._jsonSchema } as JsonSchema
+  }
+
   protected _clone(): SetSchema<T> {
     const cloned = new SetSchema(this.valueSchema)
     cloned.rules = [...this.rules]
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
   }
 
@@ -108,6 +119,10 @@ export class MapSchema<K, V> extends BaseSchema<Map<K, V>> {
   private rules: MapValidationRule<K, V>[] = []
   constructor(private keySchema?: BaseSchema<K>, private valueSchema?: BaseSchema<V>) {
     super()
+    this._jsonSchema = {
+      type: "object",
+      additionalProperties: valueSchema?.toJsonSchema(),
+    }
   }
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | Map<K, V> {
@@ -157,10 +172,15 @@ export class MapSchema<K, V> extends BaseSchema<Map<K, V>> {
     return validated
   }
 
+  toJsonSchema(): JsonSchema {
+    return { ...this._jsonSchema } as JsonSchema
+  }
+
   protected _clone(): MapSchema<K, V> {
     const cloned = new MapSchema(this.keySchema, this.valueSchema)
     cloned.rules = [...this.rules]
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
   }
 
