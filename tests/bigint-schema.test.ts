@@ -187,3 +187,33 @@ describe('k.bigint() chained constraints', () => {
     expect(s.safeParse(-5n).success).toBe(false)
   })
 })
+
+describe('k.bigint().toJsonSchema()', () => {
+  it('returns { type: "integer" }', () => {
+    expect(k.bigint().toJsonSchema()).toEqual({ type: 'integer' })
+  })
+
+  it('positive() sets exclusiveMinimum: 0', () => {
+    expect(k.bigint().positive().toJsonSchema()).toEqual({ type: 'integer', exclusiveMinimum: 0 })
+  })
+
+  it('negative() sets exclusiveMaximum: 0', () => {
+    expect(k.bigint().negative().toJsonSchema()).toEqual({ type: 'integer', exclusiveMaximum: 0 })
+  })
+
+  it('min().max() translates to minimum/maximum', () => {
+    expect(k.bigint().min(10n).max(100n).toJsonSchema()).toEqual({ type: 'integer', minimum: 10, maximum: 100 })
+  })
+
+  it('greaterThan().lessThan() translates to exclusiveMinimum/exclusiveMaximum', () => {
+    expect(k.bigint().greaterThan(5n).lessThan(10n).toJsonSchema()).toEqual({ type: 'integer', exclusiveMinimum: 5, exclusiveMaximum: 10 })
+  })
+
+  it('multipleOf() translates to multipleOf', () => {
+    expect(k.bigint().multipleOf(3n).toJsonSchema()).toEqual({ type: 'integer', multipleOf: 3 })
+  })
+
+  it('includes description from describe()', () => {
+    expect(k.bigint().describe('big').toJsonSchema()).toEqual({ type: 'integer', description: 'big' })
+  })
+})

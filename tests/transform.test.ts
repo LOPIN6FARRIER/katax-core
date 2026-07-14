@@ -99,3 +99,18 @@ describe('complex transforms', () => {
     if (r.success) expect(r.data).toBe('hello-world')
   })
 })
+
+describe('toJsonSchema()', () => {
+  it('transform schema delegates to inner schema', () => {
+    const schema = k.string().transform(v => v.toUpperCase())
+    expect(schema.toJsonSchema()).toEqual({ type: 'string' })
+  })
+  it('preserves inner schema constraints', () => {
+    const schema = k.string().minLength(3).email().transform(v => v.trim())
+    expect(schema.toJsonSchema()).toEqual({ type: 'string', minLength: 3, format: 'email' })
+  })
+  it('includes description through transform', () => {
+    const schema = k.number().describe('rounded').transform(v => Math.round(v))
+    expect(schema.toJsonSchema().description).toBe('rounded')
+  })
+})

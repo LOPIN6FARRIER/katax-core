@@ -167,3 +167,44 @@ describe('ObjectSchema', () => {
     }
   })
 })
+
+describe('toJsonSchema()', () => {
+  it('returns json schema for simple object', () => {
+    const schema = k.object({ name: k.string(), age: k.number() })
+    expect(schema.toJsonSchema()).toEqual({
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        age: { type: 'number' }
+      },
+      required: ['name', 'age']
+    })
+  })
+  it('optional fields omitted from required', () => {
+    const schema = k.object({ name: k.string(), age: k.number().optional() })
+    expect(schema.toJsonSchema()).toEqual({
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        age: { type: 'number' }
+      },
+      required: ['name']
+    })
+  })
+  it('preserves description through partial()', () => {
+    const schema = k.object({ name: k.string() }).describe('user object').partial()
+    expect(schema.toJsonSchema().description).toBe('user object')
+  })
+  it('preserves description through pick()', () => {
+    const schema = k.object({ name: k.string(), age: k.number() }).describe('picked').pick(['name'])
+    expect(schema.toJsonSchema().description).toBe('picked')
+  })
+  it('preserves description through omit()', () => {
+    const schema = k.object({ name: k.string(), age: k.number() }).describe('omitted').omit(['age'])
+    expect(schema.toJsonSchema().description).toBe('omitted')
+  })
+  it('preserves description through passthrough()', () => {
+    const schema = k.object({ name: k.string() }).describe('passthrough obj').passthrough()
+    expect(schema.toJsonSchema().description).toBe('passthrough obj')
+  })
+})

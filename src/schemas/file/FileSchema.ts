@@ -1,5 +1,6 @@
 import { BaseSchema } from "../../core/BaseSchema";
 import { Issue, describeReceived } from "../../core/result";
+import type { JsonSchema } from "../../core/schema.types";
 
 // Multer file structure (compatible with Express.Multer.File)
 // Defined inline to avoid requiring @types/express as peer dependency
@@ -83,10 +84,15 @@ export class FileSchema extends BaseSchema<File | MulterFile> {
     return input as File | MulterFile;
   }
 
+  toJsonSchema(): JsonSchema {
+    return { ...this._jsonSchema } as JsonSchema
+  }
+
   protected _clone(): FileSchema {
     const cloned = new FileSchema();
     cloned.rules = [...this.rules];
     cloned._asyncValidators = [...this._asyncValidators];
+    cloned._jsonSchema = { ...this._jsonSchema };
     return cloned;
   }
 

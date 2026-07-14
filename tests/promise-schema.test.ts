@@ -61,3 +61,12 @@ describe("k.promise()", () => {
     expect(schema.hasAsyncValidation()).toBe(false)
   })
 })
+
+describe("toJsonSchema()", () => {
+  it("returns json schema", () => {
+    expect(k.promise().toJsonSchema()).toEqual({ type: "object" })
+  })
+  it("includes description", () => {
+    expect(k.promise().describe("async result").toJsonSchema().description).toBe("async result")
+  })
+})

@@ -1,5 +1,6 @@
 import { BaseSchema } from "../../core/BaseSchema"
 import { Issue, isIssueArray, describeReceived } from "../../core/result"
+import type { JsonSchema } from "../../core/schema.types"
 
 type CustomValidator<T> = (value: unknown, path: Issue["path"]) => Issue[] | T
 
@@ -25,6 +26,10 @@ export class CustomSchema<T> extends BaseSchema<T> {
 
   constructor(private validator: CustomValidator<T>) {
     super()
+  }
+
+  toJsonSchema(): JsonSchema {
+    return { ...this._jsonSchema } as JsonSchema
   }
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | T {
@@ -56,6 +61,7 @@ export class CustomSchema<T> extends BaseSchema<T> {
     const cloned = new CustomSchema(this.validator)
     cloned.refinements = [...this.refinements]
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
   }
 
@@ -86,6 +92,7 @@ export class CustomSchema<T> extends BaseSchema<T> {
 export class LiteralSchema<T extends string | number | boolean | null | undefined> extends BaseSchema<T> {
   constructor(private value: T) {
     super()
+    this._jsonSchema = { const: value }
   }
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | T {
@@ -101,7 +108,12 @@ export class LiteralSchema<T extends string | number | boolean | null | undefine
   protected _clone(): LiteralSchema<T> {
     const cloned = new LiteralSchema(this.value)
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
+  }
+
+  toJsonSchema(): JsonSchema {
+    return { ...this._jsonSchema } as JsonSchema
   }
 }
 
@@ -121,6 +133,7 @@ export class EnumSchema<T extends readonly [string, ...string[]]> extends BaseSc
     if (values.length === 0) {
       throw new Error("Enum schema requires at least one value")
     }
+    this._jsonSchema = { enum: [...values] }
   }
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | T[number] {
@@ -136,7 +149,12 @@ export class EnumSchema<T extends readonly [string, ...string[]]> extends BaseSc
   protected _clone(): EnumSchema<T> {
     const cloned = new EnumSchema(this.values)
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
+  }
+
+  toJsonSchema(): JsonSchema {
+    return { ...this._jsonSchema } as JsonSchema
   }
 }
 
@@ -160,7 +178,12 @@ export class AnySchema extends BaseSchema<any> {
   protected _clone(): AnySchema {
     const cloned = new AnySchema()
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
+  }
+
+  toJsonSchema(): JsonSchema {
+    return { ...this._jsonSchema } as JsonSchema
   }
 }
 
@@ -183,7 +206,12 @@ export class UnknownSchema extends BaseSchema<unknown> {
   protected _clone(): UnknownSchema {
     const cloned = new UnknownSchema()
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
+  }
+
+  toJsonSchema(): JsonSchema {
+    return { ...this._jsonSchema } as JsonSchema
   }
 }
 
@@ -192,6 +220,11 @@ export class UnknownSchema extends BaseSchema<unknown> {
  * or marking impossible branches.
  */
 export class NeverSchema extends BaseSchema<never> {
+  constructor() {
+    super()
+    this._jsonSchema = { not: {} }
+  }
+
   _parse(_input: unknown, path: Issue["path"]): Issue[] | never {
     return [{
       path,
@@ -202,7 +235,12 @@ export class NeverSchema extends BaseSchema<never> {
   protected _clone(): NeverSchema {
     const cloned = new NeverSchema()
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
+  }
+
+  toJsonSchema(): JsonSchema {
+    return { ...this._jsonSchema } as JsonSchema
   }
 }
 
@@ -221,6 +259,14 @@ export class TupleSchema<T extends [BaseSchema<any>, ...BaseSchema<any>[]]> exte
 }> {
   constructor(private schemas: T) {
     super()
+    const items = schemas.map((s) => s.toJsonSchema())
+    this._jsonSchema = {
+      type: "array",
+      prefixItems: items,
+      items: false,
+      minItems: items.length,
+      maxItems: items.length,
+    }
   }
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | { [K in keyof T]: T[K] extends BaseSchema<infer U> ? U : never } {
@@ -260,7 +306,12 @@ export class TupleSchema<T extends [BaseSchema<any>, ...BaseSchema<any>[]]> exte
   protected _clone(): TupleSchema<T> {
     const cloned = new TupleSchema([...this.schemas] as T)
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
+  }
+
+  toJsonSchema(): JsonSchema {
+    return { ...this._jsonSchema } as JsonSchema
   }
 
   protected async _parseAsyncNested(value: { [K in keyof T]: T[K] extends BaseSchema<infer U> ? U : never }, path: Issue["path"]): Promise<Issue[]> {
@@ -306,6 +357,10 @@ export class TupleSchema<T extends [BaseSchema<any>, ...BaseSchema<any>[]]> exte
 export class RecordSchema<V extends BaseSchema<any>> extends BaseSchema<Record<string, V extends BaseSchema<infer U> ? U : never>> {
   constructor(private valueSchema: V) {
     super()
+    this._jsonSchema = {
+      type: "object",
+      additionalProperties: valueSchema.toJsonSchema(),
+    }
   }
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | Record<string, V extends BaseSchema<infer U> ? U : never> {
@@ -338,7 +393,12 @@ export class RecordSchema<V extends BaseSchema<any>> extends BaseSchema<Record<s
   protected _clone(): RecordSchema<V> {
     const cloned = new RecordSchema(this.valueSchema)
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
+  }
+
+  toJsonSchema(): JsonSchema {
+    return { ...this._jsonSchema } as JsonSchema
   }
 
   protected async _parseAsyncNested(value: Record<string, V extends BaseSchema<infer U> ? U : never>, path: Issue["path"]): Promise<Issue[]> {

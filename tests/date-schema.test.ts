@@ -93,4 +93,14 @@ describe('DateSchema', () => {
       expect(result.data).toBe('2024-01-15')
     }
   })
+
+  it('toJsonSchema() returns string with date-time format', () => {
+    const result = k.date().toJsonSchema()
+    expect(result).toEqual({ type: 'string', format: 'date-time' })
+  })
+
+  it('toJsonSchema() with describe() includes description', () => {
+    const result = k.date().describe('birth').toJsonSchema()
+    expect(result).toEqual({ type: 'string', format: 'date-time', description: 'birth' })
+  })
 })

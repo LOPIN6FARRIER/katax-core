@@ -1,5 +1,3 @@
-// src/core/errors.ts
-
 import type { Issue } from "./result"
 
 export class KataxError extends Error {
@@ -7,7 +5,7 @@ export class KataxError extends Error {
 
   constructor(issues: Issue[], options?: { cause?: Error }) {
     const message = issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')
-    super(message, options)
+    super(message)
     this.name = 'KataxError'
     this.issues = issues
   }

@@ -1,10 +1,12 @@
 import { BaseSchema } from "../../core/BaseSchema"
 import { Issue, describeReceived, isIssueArray } from "../../core/result"
+import type { JsonSchema } from "../../core/schema.types"
 import type { AsyncSafeParseResult } from "../../core/AsyncResult"
 
 export class PromiseSchema<T> extends BaseSchema<Promise<T>> {
   constructor(private schema?: BaseSchema<T>) {
     super()
+    this._jsonSchema = { type: "object" }
   }
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | Promise<T> {
@@ -36,9 +38,14 @@ export class PromiseSchema<T> extends BaseSchema<Promise<T>> {
     return { success: true as const, data: input as Promise<T> }
   }
 
+  toJsonSchema(): JsonSchema {
+    return { ...this._jsonSchema } as JsonSchema
+  }
+
   protected _clone(): PromiseSchema<T> {
     const cloned = new PromiseSchema(this.schema)
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
   }
 

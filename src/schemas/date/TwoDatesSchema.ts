@@ -1,5 +1,6 @@
 import { BaseSchema } from "../../core/BaseSchema"
 import { Issue } from "../../core/result"
+import type { JsonSchema } from "../../core/schema.types"
 import {
   differenceInDays,
   differenceInHours,
@@ -24,6 +25,7 @@ export class TwoDatesSchema extends BaseSchema<[Date, Date]> {
     super()
     this.separator = separator
     this.dateSchema = new DateSchema()
+    this._jsonSchema = { type: "string", format: "date-time" }
   }
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | [Date, Date] {
@@ -67,7 +69,12 @@ export class TwoDatesSchema extends BaseSchema<[Date, Date]> {
     const cloned = new TwoDatesSchema(this.separator)
     cloned.rules = [...this.rules]
     cloned._asyncValidators = [...this._asyncValidators]
+    cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
+  }
+
+  toJsonSchema(): JsonSchema {
+    return { ...this._jsonSchema } as JsonSchema
   }
 
   maxDifference(days: number, message?: string): this {

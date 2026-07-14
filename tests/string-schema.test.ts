@@ -151,4 +151,26 @@ describe('StringSchema', () => {
     expect(s.safeParse('256.1.2.3/24').success).toBe(false)
     expect(s.safeParse('192.168.1.0/33').success).toBe(false)
   })
+
+  describe('toJsonSchema()', () => {
+    it('returns { type: "string" }', () => {
+      expect(k.string().toJsonSchema()).toEqual({ type: 'string' })
+    })
+
+    it('respects minLength().maxLength()', () => {
+      expect(k.string().minLength(3).maxLength(10).toJsonSchema()).toEqual({ type: 'string', minLength: 3, maxLength: 10 })
+    })
+
+    it('email() sets format: "email"', () => {
+      expect(k.string().email().toJsonSchema()).toEqual({ type: 'string', format: 'email' })
+    })
+
+    it('length() sets both minLength and maxLength', () => {
+      expect(k.string().length(5).toJsonSchema()).toEqual({ type: 'string', minLength: 5, maxLength: 5 })
+    })
+
+    it('includes description from describe()', () => {
+      expect(k.string().describe('desc').toJsonSchema()).toEqual({ type: 'string', description: 'desc' })
+    })
+  })
 })
