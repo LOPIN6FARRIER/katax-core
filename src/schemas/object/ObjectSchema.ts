@@ -196,7 +196,7 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<
     result._asyncValidators = [
       ...this._asyncValidators,
     ] as AsyncValidator<any>[];
-    result._jsonSchema = { ...this._jsonSchema };
+    result._jsonSchema = { ...this._jsonSchema, ...result._jsonSchema };
     return result;
   }
 
@@ -213,7 +213,7 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<
     result._asyncValidators = [
       ...this._asyncValidators,
     ] as AsyncValidator<any>[];
-    result._jsonSchema = { ...this._jsonSchema };
+    result._jsonSchema = { ...this._jsonSchema, ...result._jsonSchema };
     return result;
   }
 
@@ -240,7 +240,7 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<
     result._asyncValidators = [
       ...this._asyncValidators,
     ] as AsyncValidator<any>[];
-    result._jsonSchema = { ...this._jsonSchema };
+    result._jsonSchema = { ...this._jsonSchema, ...result._jsonSchema };
     return result;
   }
 
@@ -270,7 +270,11 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<
       ...this._asyncValidators,
       ...other._asyncValidators,
     ] as AsyncValidator<any>[];
-    result._jsonSchema = { ...this._jsonSchema, ...other._jsonSchema };
+    result._jsonSchema = {
+      ...this._jsonSchema,
+      ...other._jsonSchema,
+      ...result._jsonSchema,
+    };
     return result;
   }
 
