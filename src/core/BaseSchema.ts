@@ -330,7 +330,7 @@ export class OptionalSchema<T> extends WrapperSchema<T, T | undefined> {
     return this.inner._parse(input, path);
   }
   toJsonSchema(): JsonSchema {
-    return this.inner.toJsonSchema();
+    return { ...this.inner.toJsonSchema(), ...this._jsonSchema } as JsonSchema;
   }
 
   override isOptional(): boolean {
@@ -344,7 +344,7 @@ export class NullableSchema<T> extends WrapperSchema<T, T | null> {
     return this.inner._parse(input, path);
   }
   toJsonSchema(): JsonSchema {
-    return this.inner.toJsonSchema();
+    return { ...this.inner.toJsonSchema(), ...this._jsonSchema } as JsonSchema;
   }
 }
 
@@ -354,7 +354,7 @@ export class NullishSchema<T> extends WrapperSchema<T, T | null | undefined> {
     return this.inner._parse(input, path);
   }
   toJsonSchema(): JsonSchema {
-    return this.inner.toJsonSchema();
+    return { ...this.inner.toJsonSchema(), ...this._jsonSchema } as JsonSchema;
   }
 }
 
@@ -434,7 +434,7 @@ export class TransformSchema<T, U> extends BaseSchema<U> {
   }
 
   toJsonSchema(): JsonSchema {
-    return this.inner.toJsonSchema();
+    return { ...this.inner.toJsonSchema(), ...this._jsonSchema } as JsonSchema;
   }
 }
 
@@ -467,7 +467,7 @@ export class CatchSchema<T> extends WrapperSchema<T, T> {
   }
 
   toJsonSchema(): JsonSchema {
-    return this.inner.toJsonSchema();
+    return { ...this.inner.toJsonSchema(), ...this._jsonSchema } as JsonSchema;
   }
 }
 
@@ -522,6 +522,6 @@ export class BrandedSchema<T, B extends string> extends BaseSchema<
   }
 
   toJsonSchema(): JsonSchema {
-    return this.inner.toJsonSchema();
+    return { ...this.inner.toJsonSchema(), ...this._jsonSchema } as JsonSchema;
   }
 }
