@@ -23,6 +23,9 @@ import type { JsonSchema } from "../../core/schema.types"
  */
 export class LazySchema<T> extends BaseSchema<T> {
   private _cached: BaseSchema<T> | null = null
+  private _resolving = false
+  private _resolvingJsonSchema = false
+  private _checkingAsyncValidation = false
 
   constructor(private resolver: () => BaseSchema<T>) {
     super()
@@ -30,7 +33,21 @@ export class LazySchema<T> extends BaseSchema<T> {
 
   private getSchema(): BaseSchema<T> {
     if (this._cached === null) {
-      this._cached = this.resolver()
+      if (this._resolving) {
+        throw new Error(
+          "k.lazy(): circular reference detected while resolving the schema. " +
+            "The resolver function referenced its own lazy schema before returning " +
+            "(e.g. via a container schema that eagerly inspects its element schema). " +
+            "Make sure the resolver only builds the schema and doesn't trigger " +
+            "resolution of itself synchronously.",
+        )
+      }
+      this._resolving = true
+      try {
+        this._cached = this.resolver()
+      } finally {
+        this._resolving = false
+      }
     }
     return this._cached
   }
@@ -40,9 +57,21 @@ export class LazySchema<T> extends BaseSchema<T> {
   }
 
   toJsonSchema(): JsonSchema {
-    return {
-      ...this._jsonSchema,
-      ...this.getSchema().toJsonSchema(),
+    // A genuinely self-referential schema (e.g. a recursive tree type) has no
+    // finite JSON Schema representation without $ref support. Rather than
+    // recursing forever, stop at the first re-entrant call and omit the nested
+    // shape for that branch.
+    if (this._resolvingJsonSchema) {
+      return { ...this._jsonSchema }
+    }
+    this._resolvingJsonSchema = true
+    try {
+      return {
+        ...this._jsonSchema,
+        ...this.getSchema().toJsonSchema(),
+      }
+    } finally {
+      this._resolvingJsonSchema = false
     }
   }
 
@@ -67,6 +96,18 @@ export class LazySchema<T> extends BaseSchema<T> {
   }
 
   protected _hasAsyncValidationNested(): boolean {
-    return this.getSchema().hasAsyncValidation()
+    // A self-referential schema graph makes this traversal cyclic (object -> array
+    // -> this same lazy schema -> object -> ...). Break the cycle on re-entry: the
+    // recursive branch itself contributes nothing new that the outer call hasn't
+    // already accounted for.
+    if (this._checkingAsyncValidation) {
+      return false
+    }
+    this._checkingAsyncValidation = true
+    try {
+      return this.getSchema().hasAsyncValidation()
+    } finally {
+      this._checkingAsyncValidation = false
+    }
   }
 }

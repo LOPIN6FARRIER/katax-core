@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { k } from "../src/k"
+import { KataxAsyncValidationRequiredError } from "../src/core/errors"
 
 describe("k.promise()", () => {
   it("accepts a Promise", () => {
@@ -16,12 +17,20 @@ describe("k.promise()", () => {
     expect(schema.safeParse(null).success).toBe(false)
   })
 
-  it("parse returns the input Promise as-is", async () => {
-    const schema = k.promise(k.number())
+  it("parse returns the input Promise as-is when there's no inner schema to await", () => {
+    const schema = k.promise()
     const promise = Promise.resolve(42)
     const result = schema.parse(promise)
     expect(result).toBe(promise)
-    expect(await result).toBe(42)
+  })
+
+  it("parse throws when an inner schema requires awaiting the resolved value", () => {
+    const schema = k.promise(k.number())
+    const promise = Promise.resolve(42)
+    // Validating the resolved value requires awaiting the promise, so this can
+    // only be done through parseAsync()/safeParseAsync() - parse() must not
+    // silently skip that check.
+    expect(() => schema.parse(promise)).toThrow(KataxAsyncValidationRequiredError)
   })
 
   it("safeParseAsync validates resolved value", async () => {

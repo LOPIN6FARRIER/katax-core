@@ -609,6 +609,17 @@ schema.toJsonSchema().description // "User profile"
 
 Automatically convert input types before validation via `k.coerce.*`:
 
+> **`null`/`undefined` policy differs per type** — this is intentional, not an oversight:
+>
+> | Coercion | `null`/`undefined` behavior |
+> |---|---|
+> | `k.coerce.number()` | throws a validation issue (no sensible numeric default) |
+> | `k.coerce.date()` | throws a validation issue (no sensible date default) |
+> | `k.coerce.boolean()` | coerces to `false` |
+> | `k.coerce.string()` | coerces to `""` |
+>
+> If you need a different default, chain `.default(...)` or `.catch(...)` on the coerced schema.
+
 ### Coerced Number
 
 ```typescript

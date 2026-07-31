@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { k, kataxInfer } from '../src/k'
+import { KataxAsyncValidationRequiredError } from '../src/core/errors'
 
 describe('immutability', () => {
   it('string builders return new instances', () => {
@@ -236,10 +237,13 @@ describe('immutability', () => {
     expect(base.safeParse({ type: 'c', val: 'x' }).success).toBe(false)
   })
 
-  it('promise returns new instance', () => {
+  it('promise returns new instance', async () => {
     const base = k.promise(k.string())
-    expect(base.safeParse('hello').success).toBe(false)
-    expect(base.safeParse(Promise.resolve('hello')).success).toBe(true)
+    // k.promise(schema) requires awaiting the resolved value, so validating it
+    // needs the async API - safeParse()/parse() now throw instead of silently
+    // skipping that check.
+    expect(() => base.safeParse('hello')).toThrow(KataxAsyncValidationRequiredError)
+    expect(await base.safeParseAsync(Promise.resolve('hello')).then(r => r.success)).toBe(true)
   })
 
   it('preprocess returns new instance', () => {

@@ -30,11 +30,23 @@ describe('edge cases', () => {
     expect(optional.safeParse(null).success).toBe(false)
   })
 
-  it('handles circular reference in objects gracefully', () => {
+  it('a circular property outside the declared shape is stripped, not traversed', () => {
+    // ObjectSchema only iterates the keys declared in its shape (`name` here), so
+    // `obj.self` is never read regardless of whether it's circular - this test
+    // would previously have passed identically for ANY extra property, circular
+    // or not, which made it misleading as "circular reference" coverage. This
+    // version actually asserts the property responsible for safety: the circular
+    // key is absent from the parsed output.
     const schema = k.object({ name: k.string() })
     const obj: any = { name: 'test' }
     obj.self = obj
-    expect(() => schema.safeParse(obj)).not.toThrow()
+
+    const result = schema.safeParse(obj)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data).toEqual({ name: 'test' })
+      expect('self' in result.data).toBe(false)
+    }
   })
 
   it('default value is cloned, not mutated', () => {

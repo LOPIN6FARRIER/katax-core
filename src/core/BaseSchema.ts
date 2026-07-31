@@ -7,7 +7,7 @@ import type {
   AsyncValidationResult,
   AsyncValidator,
 } from "./AsyncResult";
-import { KataxError } from "./errors";
+import { KataxError, KataxAsyncValidationRequiredError, KataxRefinementFailure } from "./errors";
 import type { Schema } from "./Schema";
 import { JsonSchema } from "./schema.types";
 
@@ -53,6 +53,9 @@ export abstract class BaseSchema<T> implements Schema<T> {
    * @throws {KataxError} When validation fails
    */
   parse(input: unknown): T {
+    if (this.hasAsyncValidation()) {
+      throw new KataxAsyncValidationRequiredError();
+    }
     const result = this.safeParse(input);
     if (!result.success) {
       throw new KataxError(result.issues);
@@ -67,6 +70,9 @@ export abstract class BaseSchema<T> implements Schema<T> {
    * @returns Success result with data, or failure result with issues
    */
   safeParse(input: unknown): SafeParseResult<T> {
+    if (this.hasAsyncValidation()) {
+      throw new KataxAsyncValidationRequiredError();
+    }
     const output = this._parse(input, []);
     if (isIssueArray(output)) {
       return { success: false, issues: output as Issue[] };
@@ -122,7 +128,7 @@ export abstract class BaseSchema<T> implements Schema<T> {
     return this.transform((value) => {
       if (!validator(value)) {
         const msg = typeof message === "function" ? message(value) : message;
-        throw new Error(msg ?? "Refinement failed");
+        throw new KataxRefinementFailure(msg ?? "Refinement failed");
       }
       return value;
     });
@@ -406,12 +412,14 @@ export class TransformSchema<T, U> extends BaseSchema<U> {
     try {
       return this.transformer(result as T);
     } catch (error) {
-      return [
-        {
-          path,
-          message: `Transform error: ${error instanceof Error ? error.message : "Unknown error"}`,
-        },
-      ];
+      // Only a deliberate refine() failure becomes a validation Issue. Any other
+      // thrown error is a real bug in the caller's transform()/refine() callback
+      // (e.g. a null-pointer TypeError) and must propagate, not be disguised as
+      // a validation failure.
+      if (error instanceof KataxRefinementFailure) {
+        return [{ path, message: error.message }];
+      }
+      throw error;
     }
   }
 
