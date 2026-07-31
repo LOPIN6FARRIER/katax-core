@@ -1,5 +1,5 @@
 import { Issue, SafeParseResult } from "./result"
-import type { BaseSchema } from "./BaseSchema"
+import type { Schema } from "./Schema"
 
 /**
  * Create an issue with the given path and message.
@@ -61,7 +61,7 @@ export function mergeIssues(...arrays: Issue[][]): Issue[] {
  * ```
  */
 export async function validateSchema<T>(
-  schema: BaseSchema<T>,
+  schema: Schema<T>,
   data: unknown,
 ): Promise<SafeParseResult<T>> {
   return schema.hasAsyncValidation() ? schema.safeParseAsync(data) : schema.safeParse(data)
