@@ -1,6 +1,6 @@
 import { BaseSchema, OptionalSchema } from "../../core/BaseSchema";
 import type { AsyncValidator } from "../../core/AsyncResult";
-import { Issue, describeReceived } from "../../core/result";
+import { Issue, describeReceived, isIssueArray } from "../../core/result";
 import type { JsonSchema } from "../../core/schema.types";
 
 type ObjectShape = Record<string, BaseSchema<any>>;
@@ -21,14 +21,11 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<
       (key) => !this.shape[key].isOptional(),
     );
 
+    // `properties` is resolved lazily in toJsonSchema(), not here: calling
+    // schema.toJsonSchema() eagerly for every key would recurse forever if a key's
+    // schema is a still-resolving k.lazy() (its resolver hasn't returned yet).
     this._jsonSchema = {
       type: "object",
-      properties: Object.fromEntries(
-        Object.entries(shape).map(([key, schema]) => [
-          key,
-          schema.toJsonSchema(),
-        ]),
-      ),
       required: requiredKeys.length > 0 ? requiredKeys : undefined,
     };
   }
@@ -77,14 +74,7 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<
       const fieldResult = fieldSchema._parse(fieldValue, fieldPath);
 
       // Check if result is an array of Issues (not data array)
-      if (
-        Array.isArray(fieldResult) &&
-        fieldResult.length > 0 &&
-        typeof fieldResult[0] === "object" &&
-        fieldResult[0] !== null &&
-        "path" in fieldResult[0] &&
-        "message" in fieldResult[0]
-      ) {
+      if (isIssueArray(fieldResult)) {
         issues.push(...fieldResult);
       } else {
         result[key] = fieldResult;
@@ -279,7 +269,15 @@ export class ObjectSchema<T extends ObjectShape> extends BaseSchema<
   }
 
   toJsonSchema(): JsonSchema {
-    return { ...this._jsonSchema } as JsonSchema;
+    return {
+      ...this._jsonSchema,
+      properties: Object.fromEntries(
+        Object.entries(this.shape).map(([key, schema]) => [
+          key,
+          schema.toJsonSchema(),
+        ]),
+      ),
+    } as JsonSchema;
   }
 
   /**
@@ -404,14 +402,7 @@ class PassthroughObjectSchema<T extends ObjectShape> extends ObjectSchema<T> {
       const fieldPath = [...path, key];
       const fieldResult = fieldSchema._parse(fieldValue, fieldPath);
 
-      if (
-        Array.isArray(fieldResult) &&
-        fieldResult.length > 0 &&
-        typeof fieldResult[0] === "object" &&
-        fieldResult[0] !== null &&
-        "path" in fieldResult[0] &&
-        "message" in fieldResult[0]
-      ) {
+      if (isIssueArray(fieldResult)) {
         issues.push(...fieldResult);
       } else {
         result[key] = fieldResult;

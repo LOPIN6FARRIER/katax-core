@@ -43,10 +43,19 @@ export class UnionSchema<T extends BaseSchema<any>[]> extends BaseSchema<UnionTo
       allIssues.push(result as Issue[])
     }
 
-    // None matched - combine all issues
+    // None matched - surface why each branch failed instead of a generic message
+    const perBranch = allIssues
+      .map((branchIssues, i) => {
+        const details = branchIssues
+          .map((issue) => (issue.path.length > 0 ? `${issue.path.join(".")}: ${issue.message}` : issue.message))
+          .join(", ")
+        return `option ${i + 1}: ${details}`
+      })
+      .join(" | ")
+
     return [{
       path,
-      message: `Value does not match any of the union schemas`
+      message: `Value does not match any of the union schemas (${perBranch})`,
     }]
   }
 

@@ -11,10 +11,11 @@ export class SetSchema<T> extends BaseSchema<Set<T>> {
   private rules: SetValidationRule<T>[] = []
   constructor(private valueSchema?: BaseSchema<T>) {
     super()
+    // `items` resolved lazily in toJsonSchema() to avoid recursing into a
+    // still-resolving k.lazy() valueSchema during construction.
     this._jsonSchema = {
       type: "array",
       uniqueItems: true,
-      items: valueSchema?.toJsonSchema(),
     }
   }
 
@@ -52,7 +53,10 @@ export class SetSchema<T> extends BaseSchema<Set<T>> {
   }
 
   toJsonSchema(): JsonSchema {
-    return { ...this._jsonSchema } as JsonSchema
+    return {
+      ...this._jsonSchema,
+      items: this.valueSchema?.toJsonSchema(),
+    } as JsonSchema
   }
 
   protected _clone(): SetSchema<T> {
@@ -119,9 +123,10 @@ export class MapSchema<K, V> extends BaseSchema<Map<K, V>> {
   private rules: MapValidationRule<K, V>[] = []
   constructor(private keySchema?: BaseSchema<K>, private valueSchema?: BaseSchema<V>) {
     super()
+    // `additionalProperties` resolved lazily in toJsonSchema() to avoid recursing
+    // into a still-resolving k.lazy() valueSchema during construction.
     this._jsonSchema = {
       type: "object",
-      additionalProperties: valueSchema?.toJsonSchema(),
     }
   }
 
@@ -173,7 +178,10 @@ export class MapSchema<K, V> extends BaseSchema<Map<K, V>> {
   }
 
   toJsonSchema(): JsonSchema {
-    return { ...this._jsonSchema } as JsonSchema
+    return {
+      ...this._jsonSchema,
+      additionalProperties: this.valueSchema?.toJsonSchema(),
+    } as JsonSchema
   }
 
   protected _clone(): MapSchema<K, V> {

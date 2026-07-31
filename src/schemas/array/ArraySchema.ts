@@ -14,9 +14,12 @@ export class ArraySchema<T> extends BaseSchema<T[]> {
   constructor(elementSchema?: BaseSchema<T>) {
     super();
     this.elementSchema = elementSchema;
+    // `items` is resolved lazily in toJsonSchema() rather than here: computing it
+    // eagerly forces elementSchema.toJsonSchema() to run during construction, which
+    // recurses forever when elementSchema is a still-resolving k.lazy() (the resolver
+    // hasn't returned yet, so LazySchema._cached is null and getSchema() calls itself).
     this._jsonSchema = {
       type: "array",
-      items: elementSchema ? elementSchema.toJsonSchema() : undefined,
     };
   }
 
@@ -271,6 +274,7 @@ export class ArraySchema<T> extends BaseSchema<T[]> {
   toJsonSchema(): JsonSchema {
     return {
       ...this._jsonSchema,
+      items: this.elementSchema ? this.elementSchema.toJsonSchema() : undefined,
     } as JsonSchema;
   }
 }
