@@ -7,7 +7,7 @@ export {
   AsyncValidator,
 } from "./core/AsyncResult";
 export * from "./core/errors";
-export { createIssue, issues, mergeIssues } from "./core/utils";
+export { createIssue, issues, mergeIssues, validateSchema } from "./core/utils";
 
 // Export schema classes for advanced usage
 export { UnionSchema } from "./schemas/union/UnionSchema";

@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest"
 import { k } from "../src/k"
 import { validateSchema } from "../src/core/utils"
+import { validateSchema as validateSchemaFromPublicEntry } from "../src/index"
+
+describe("validateSchema() is exported from the package's public entry point", () => {
+  it("is importable from src/index (not just src/core/utils)", () => {
+    expect(typeof validateSchemaFromPublicEntry).toBe("function")
+  })
+})
 
 describe("validateSchema() helper", () => {
   it("uses the sync API for schemas without async validation", async () => {
