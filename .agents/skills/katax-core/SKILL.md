@@ -8,7 +8,7 @@ argument-hint: 'What kind of validation are you working on? (body/query/params/e
 
 Zod-inspired validation library for TypeScript with zero runtime dependencies (except `date-fns`). Part of the [Katax ecosystem](https://github.com/LOPIN6FARRIER/katax-core).
 
-**Version: 1.5.4**
+**Version: 1.6.5**
 
 ## Quick Start
 
