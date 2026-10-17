@@ -163,17 +163,17 @@ describe('NumberSchema', () => {
       })
     })
 
-    it('positive() and negative() do not modify JSON Schema', () => {
-      const schema = k.number().positive().negative()
-      expect(schema.toJsonSchema()).toEqual({ type: 'number' })
+    it('positive() / negative() map to exclusiveMinimum / exclusiveMaximum', () => {
+      expect(k.number().positive().toJsonSchema()).toEqual({ type: 'number', exclusiveMinimum: 0 })
+      expect(k.number().negative().toJsonSchema()).toEqual({ type: 'number', exclusiveMaximum: 0 })
     })
 
-    it('between() does not modify JSON Schema', () => {
-      expect(k.number().between(5, 10).toJsonSchema()).toEqual({ type: 'number' })
+    it('between() maps to minimum / maximum', () => {
+      expect(k.number().between(5, 10).toJsonSchema()).toEqual({ type: 'number', minimum: 5, maximum: 10 })
     })
 
-    it('integer() does not affect JSON Schema type', () => {
-      expect(k.number().integer().toJsonSchema()).toEqual({ type: 'number' })
+    it('integer() sets type integer', () => {
+      expect(k.number().integer().toJsonSchema()).toEqual({ type: 'integer' })
     })
 
     it('includes description from describe()', () => {
@@ -191,6 +191,7 @@ describe('NumberSchema', () => {
       expect(k.number().min(1).describe('x').positive().toJsonSchema()).toEqual({
         type: 'number',
         minimum: 1,
+        exclusiveMinimum: 0,
         description: 'x',
       })
     })

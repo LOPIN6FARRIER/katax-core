@@ -21,14 +21,25 @@ import type { JsonSchema } from "../../core/schema.types"
  * )
  * ```
  */
+let lazyAnchorCounter = 0
+
+/** `$anchor` values must match ^[A-Za-z_][-A-Za-z0-9._]*$ (JSON Schema 2020-12). */
+function toAnchorName(name: string): string {
+  const cleaned = name.replace(/[^-A-Za-z0-9._]/g, "_")
+  return /^[A-Za-z_]/.test(cleaned) ? cleaned : `_${cleaned}`
+}
+
 export class LazySchema<T> extends BaseSchema<T> {
   private _cached: BaseSchema<T> | null = null
   private _resolving = false
   private _resolvingJsonSchema = false
+  private _recursiveJsonSchema = false
   private _checkingAsyncValidation = false
+  private readonly _anchor: string
 
-  constructor(private resolver: () => BaseSchema<T>) {
+  constructor(private resolver: () => BaseSchema<T>, name?: string) {
     super()
+    this._anchor = toAnchorName(name ?? `KataxLazy${++lazyAnchorCounter}`)
   }
 
   private getSchema(): BaseSchema<T> {
@@ -56,27 +67,35 @@ export class LazySchema<T> extends BaseSchema<T> {
     return this.getSchema()._parse(input, path)
   }
 
+  /**
+   * A self-referential schema (e.g. a tree) is emitted once, tagged with
+   * `$anchor`, and every recursive occurrence becomes `{ $ref: "#<anchor>" }`
+   * (JSON Schema 2020-12 / OpenAPI 3.1). `$anchor` is only added when the
+   * schema actually recurses, so non-recursive lazy schemas are unchanged.
+   *
+   * Name the anchor with k.lazy(resolver, "Category") to get a readable `$ref`.
+   */
   toJsonSchema(): JsonSchema {
-    // A genuinely self-referential schema (e.g. a recursive tree type) has no
-    // finite JSON Schema representation without $ref support. Rather than
-    // recursing forever, stop at the first re-entrant call and omit the nested
-    // shape for that branch.
     if (this._resolvingJsonSchema) {
-      return { ...this._jsonSchema }
+      this._recursiveJsonSchema = true
+      return { $ref: `#${this._anchor}` }
     }
     this._resolvingJsonSchema = true
+    this._recursiveJsonSchema = false
     try {
-      return {
-        ...this._jsonSchema,
+      const resolved: JsonSchema = {
         ...this.getSchema().toJsonSchema(),
+        ...this._jsonSchema,
       }
+      return this._recursiveJsonSchema ? { $anchor: this._anchor, ...resolved } : resolved
     } finally {
       this._resolvingJsonSchema = false
+      this._recursiveJsonSchema = false
     }
   }
 
   protected _clone(): LazySchema<T> {
-    const cloned = new LazySchema(this.resolver)
+    const cloned = new LazySchema(this.resolver, this._anchor)
     cloned._cached = this._cached
     cloned._asyncValidators = [...this._asyncValidators]
     cloned._jsonSchema = { ...this._jsonSchema }

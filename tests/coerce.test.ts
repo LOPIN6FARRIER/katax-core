@@ -203,6 +203,7 @@ describe('toJsonSchema() for coerced schemas', () => {
   it('k.coerce.number() includes constraints from chain', () => {
     expect(k.coerce.number().positive().min(5).describe('coerced').toJsonSchema()).toEqual({
       type: 'number',
+      exclusiveMinimum: 0,
       minimum: 5,
       description: 'coerced'
     })

@@ -9,6 +9,7 @@ export interface JsonSchema {
   $dynamicAnchor?: string;
   $comment?: string;
   $id?: string;
+  $anchor?: string;
   $ref?: string;
   $defs?: Record<string, JsonSchema>;
 

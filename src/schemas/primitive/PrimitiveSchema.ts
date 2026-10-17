@@ -28,6 +28,17 @@ export class NanSchema extends BaseSchema<number> {
 }
 
 export class UndefinedSchema extends BaseSchema<undefined> {
+  constructor() {
+    super()
+    // undefined has no JSON representation: no value is valid. Inside an object
+    // (where isOptional() keeps it out of `required`) this means "key must be absent".
+    this._jsonSchema = { not: {} }
+  }
+
+  override isOptional(): boolean {
+    return true
+  }
+
   _parse(input: unknown, path: Issue["path"]): Issue[] | undefined {
     if (input !== undefined) {
       return [{ path, message: `Expected undefined, received ${describeReceived(input)}` }]
@@ -76,6 +87,11 @@ export class VoidSchema extends BaseSchema<void> {
   constructor() {
     super()
     this._jsonSchema = { type: "null" }
+  }
+
+  /** Accepts undefined, so the key is not required inside an object. */
+  override isOptional(): boolean {
+    return true
   }
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | void {

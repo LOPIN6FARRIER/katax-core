@@ -1,6 +1,7 @@
 import { BaseSchema } from "../../core/BaseSchema"
 import { Issue, describeReceived, isIssueArray } from "../../core/result"
 import type { JsonSchema } from "../../core/schema.types"
+import { withLowerBound, withUpperBound } from "../../core/jsonSchemaUtils"
 
 type SetValidationRule<T> = {
   check: (value: Set<T>) => boolean
@@ -73,6 +74,7 @@ export class SetSchema<T> extends BaseSchema<Set<T>> {
       check: (value) => value.size >= min,
       message: message ?? `Set must have at least ${min} elements`,
     })
+    clone._jsonSchema = withLowerBound(clone._jsonSchema ?? {}, "minItems", min)
     return clone
   }
 
@@ -82,6 +84,7 @@ export class SetSchema<T> extends BaseSchema<Set<T>> {
       check: (value) => value.size <= max,
       message: message ?? `Set must have at most ${max} elements`,
     })
+    clone._jsonSchema = withUpperBound(clone._jsonSchema ?? {}, "maxItems", max)
     return clone
   }
 
@@ -198,6 +201,7 @@ export class MapSchema<K, V> extends BaseSchema<Map<K, V>> {
       check: (value) => value.size >= min,
       message: message ?? `Map must have at least ${min} elements`,
     })
+    clone._jsonSchema = withLowerBound(clone._jsonSchema ?? {}, "minProperties", min)
     return clone
   }
 
@@ -207,6 +211,7 @@ export class MapSchema<K, V> extends BaseSchema<Map<K, V>> {
       check: (value) => value.size <= max,
       message: message ?? `Map must have at most ${max} elements`,
     })
+    clone._jsonSchema = withUpperBound(clone._jsonSchema ?? {}, "maxProperties", max)
     return clone
   }
 

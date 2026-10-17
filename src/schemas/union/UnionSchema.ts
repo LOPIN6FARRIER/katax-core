@@ -59,11 +59,20 @@ export class UnionSchema<T extends BaseSchema<any>[]> extends BaseSchema<UnionTo
     }]
   }
 
+  /**
+   * `anyOf` (not `oneOf`): the union picks the first branch that matches, so a
+   * value matching several branches is still valid.
+   */
   toJsonSchema(): JsonSchema {
     return {
       ...this._jsonSchema,
       anyOf: this.schemas.map((s) => s.toJsonSchema()),
     }
+  }
+
+  /** k.union([k.string(), k.undefined()]) accepts a missing value. */
+  override isOptional(): boolean {
+    return this.schemas.some((s) => s.isOptional())
   }
 
   protected _clone(): UnionSchema<T> {

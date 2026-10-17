@@ -132,24 +132,24 @@ describe('RecordSchema', () => {
 describe('toJsonSchema()', () => {
   describe('LiteralSchema', () => {
     it('returns const for string literal', () => {
-      expect(k.literal('hello').toJsonSchema()).toEqual({ const: 'hello' })
+      expect(k.literal('hello').toJsonSchema()).toEqual({ type: 'string', const: 'hello' })
     })
     it('returns const for number literal', () => {
-      expect(k.literal(42).toJsonSchema()).toEqual({ const: 42 })
+      expect(k.literal(42).toJsonSchema()).toEqual({ type: 'integer', const: 42 })
     })
     it('returns const for boolean literal', () => {
-      expect(k.literal(true).toJsonSchema()).toEqual({ const: true })
+      expect(k.literal(true).toJsonSchema()).toEqual({ type: 'boolean', const: true })
     })
     it('adds description', () => {
-      expect(k.literal('active').describe('status').toJsonSchema()).toEqual({ const: 'active', description: 'status' })
+      expect(k.literal('active').describe('status').toJsonSchema()).toEqual({ type: 'string', const: 'active', description: 'status' })
     })
   })
   describe('EnumSchema', () => {
     it('returns enum array', () => {
-      expect(k.enum(['a', 'b', 'c']).toJsonSchema()).toEqual({ enum: ['a', 'b', 'c'] })
+      expect(k.enum(['a', 'b', 'c']).toJsonSchema()).toEqual({ type: 'string', enum: ['a', 'b', 'c'] })
     })
     it('adds description', () => {
-      expect(k.enum(['x', 'y']).describe('choices').toJsonSchema()).toEqual({ enum: ['x', 'y'], description: 'choices' })
+      expect(k.enum(['x', 'y']).describe('choices').toJsonSchema()).toEqual({ type: 'string', enum: ['x', 'y'], description: 'choices' })
     })
   })
   describe('Any / Unknown / Never', () => {

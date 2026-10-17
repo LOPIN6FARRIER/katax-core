@@ -462,7 +462,13 @@ class StrictObjectSchema<T extends ObjectShape> extends ObjectSchema<T> {
     const cloned = new StrictObjectSchema(this.shape);
     cloned.caseSensitive = this.caseSensitive;
     cloned._asyncValidators = [...this._asyncValidators];
+    cloned._jsonSchema = { ...this._jsonSchema };
     return cloned;
+  }
+
+  /** Unknown keys are rejected at runtime, so they are not allowed in the schema either. */
+  toJsonSchema(): JsonSchema {
+    return { ...super.toJsonSchema(), additionalProperties: false };
   }
 
   protected async _parseAsyncNested(

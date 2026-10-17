@@ -6,6 +6,7 @@ import { LazySchema } from "./LazySchema"
  * The schema is resolved only when validation is performed.
  *
  * @param resolver - Function that returns the schema to use
+ * @param name - Optional name used as the JSON Schema `$anchor` when the schema is recursive
  * @returns A LazySchema instance
  *
  * @example
@@ -35,4 +36,5 @@ import { LazySchema } from "./LazySchema"
  * })
  * ```
  */
-export const lazy = <T>(resolver: () => BaseSchema<T>) => new LazySchema(resolver)
+export const lazy = <T>(resolver: () => BaseSchema<T>, name?: string) =>
+  new LazySchema(resolver, name)

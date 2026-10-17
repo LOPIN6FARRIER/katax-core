@@ -104,7 +104,7 @@ k.string()
 - `.lowercase(msg?)`, `.uppercase(msg?)`
 - `.alpha(msg?)`, `.alphanumeric(msg?)`, `.ascii(msg?)`
 - `.uuid(msg?)`, `.ip(msg?)`
-- `.noWhitespace(msg?)`, `.nonempty(msg?)`
+- `.noWhitespace(msg?)`, `.nonempty(msg?)` (alias: `.notEmpty(msg?)`)
 - `.email(msg?)`, `.url(msg?)`
 - `.datetime(msg?)` - ISO 8601 datetime, `.jwt(msg?)` - JSON Web Token
 - `.cuid2(msg?)` - CUID2, `.ulid(msg?)` - ULID
@@ -173,13 +173,15 @@ k.bigint()
   .nonnegative()        .nonpositive()
   .between(10n, 20n)    .multipleOf(5n)
   .equals(0n)           .oneOf([1n, 2n, 3n])
-  .notOneOf([-1n, -2n])
+  .notOneOf([-1n, -2n]) .notEqual(0n)
+  .greaterThan(0n)      .lessThan(100n)
 ```
 
 - `.min(n, msg?)`, `.max(n, msg?)`, `.equals(n, msg?)`
 - `.positive(msg?)`, `.negative(msg?)`
 - `.nonnegative(msg?)`, `.nonpositive(msg?)`
 - `.between(min, max, msg?)`, `.multipleOf(n, msg?)`
+- `.greaterThan(n, msg?)`, `.lessThan(n, msg?)`, `.notEqual(n, msg?)`
 - `.oneOf(arr, msg?)`, `.notOneOf(arr, msg?)`
 
 ### Object Schema
@@ -201,6 +203,7 @@ k.object({
 
 **Object behavior:**
 - By default, objects **strip** extra keys without error
+- Fields marked `.optional()`, `.nullish()` or `.default()` may be omitted from the input
 - `.passthrough()` keeps extra keys in the output
 - `.strict()` rejects extra keys with validation errors
 - `.strip()` explicitly strips extra keys (same as default)
@@ -241,7 +244,7 @@ k.array(k.string())
 
 - `.minLength(n, msg?)`, `.maxLength(n, msg?)`, `.length(n, msg?)`
 - `.min(n, msg?)`, `.max(n, msg?)` (aliases for minLength/maxLength)
-- `.notEmpty(msg?)`, `.unique(msg?)`
+- `.notEmpty(msg?)` (alias: `.nonempty(msg?)`), `.unique(msg?)`
 - `.contains(element, msg?)`
 
 ### Date Schema
@@ -254,6 +257,8 @@ k.date()
   .format('yyyy-MM-dd')        .isDateOnly()
   .hasTime()                   .formatOutput('dd/MM/yyyy')
 ```
+
+Accepts a `Date` instance or an ISO 8601 string (`'2024-01-15'` or `'2024-01-15T10:30:00Z'`) and always outputs a `Date`.
 
 - `.min(dateStr, msg?)`, `.max(dateStr, msg?)`, `.between(start, end, msg?)`
 - `.isFuture(msg?)`, `.isPast(msg?)`
@@ -365,6 +370,8 @@ animalSchema.parse({ type: "dog", bark: false });     // OK
 animalSchema.parse({ type: "fish", swim: true });     // Error: invalid discriminator
 ```
 
+The keys of the map are the discriminator values. Only own keys are matched, so values like `"toString"` or `"__proto__"` are rejected as invalid instead of crashing.
+
 ### Literal and Enum
 
 ```typescript
@@ -417,6 +424,8 @@ const result = acceptsPromise.parse(Promise.resolve("hello"));
 ```typescript
 k.set()                  // validates input is a Set
 k.set(k.number())        // validates each element
+  .minSize(1)            .maxSize(10)
+  .nonempty()
 ```
 
 ```typescript
@@ -430,6 +439,8 @@ numberSet.parse(new Set([1, -2]));   // Error: invalid element
 ```typescript
 k.map()                        // validates input is a Map
 k.map(k.string(), k.number())  // validates keys and values
+  .minSize(1)                  .maxSize(10)
+  .nonempty()
 ```
 
 ```typescript
@@ -480,6 +491,8 @@ const customWithRefine = k.custom<string>((value, path) => {
 
 ### Lazy Schema (Recursive Types)
 
+`k.lazy(resolver, name?)` defers building the schema until it's used, so a schema can reference itself. The optional `name` is used as the JSON Schema `$anchor` for recursive references (see [JSON Schema Output](#json-schema-output)).
+
 ```typescript
 interface TreeNode {
   value: string;
@@ -490,7 +503,8 @@ const treeSchema: ReturnType<typeof k.lazy<TreeNode>> = k.lazy(() =>
   k.object({
     value: k.string(),
     children: k.array(treeSchema)
-  })
+  }),
+  "TreeNode"
 );
 
 treeSchema.parse({
@@ -525,12 +539,32 @@ k.string().catch('fallback')  // return fallback on validation failure
 k.string().transform(s => s.toUpperCase()) // transform output type
 k.string().brand('UserId')    // nominal typing (T & { __brand: B })
 k.string().refine(v => v.length > 0) // custom refinement
-k.string().asyncRefine(async v => []) // async refinement
+k.string().asyncRefine(async (v, path) => []) // async refinement
 ```
+
+### `optional` vs `nullable` vs `nullish`
+
+`undefined` (missing key) and `null` (explicitly empty) are different values. Pick the modifier that matches what your API accepts:
+
+| Modifier | `undefined` / missing key | `null` | Key in JSON Schema `required` |
+|---|---|---|---|
+| `.optional()` | ✅ | ❌ | no |
+| `.nullable()` | ❌ | ✅ | yes |
+| `.nullish()` | ✅ | ✅ | no |
+| `.default(v)` | ✅ (replaced by `v`) | ❌ | no |
+
+```typescript
+k.string().optional().parse(null);  // Error: Expected string, received null
+k.string().nullish().parse(null);   // null
+```
+
+Typical use: in a PATCH body, `.optional()` means "leave unchanged" and `.nullable()`/`.nullish()` lets the client clear the value with `null`.
 
 ## JSON Schema Output
 
-Generate JSON Schema Draft 2020-12 from any schema using `toJsonSchema()`:
+Generate **JSON Schema Draft 2020-12** from any schema with `toJsonSchema()`. The output describes exactly what the schema accepts at runtime (chained rules are all kept, nullability and optionality included), so it can be used directly in **OpenAPI 3.1** documents (Swagger UI, Redoc...).
+
+> OpenAPI 3.0 uses an older JSON Schema subset (no `type` arrays, no `prefixItems`, no `const`). Use `openapi: "3.1.0"` with this output.
 
 ```typescript
 import { k } from 'katax-core';
@@ -538,7 +572,8 @@ import { k } from 'katax-core';
 const schema = k.object({
   name: k.string().minLength(2).describe("User's full name"),
   email: k.string().email(),
-  age: k.number().min(18).max(120).describe("Age in years"),
+  age: k.number().integer().min(18).max(120).describe("Age in years"),
+  nickname: k.string().nullish(),
   role: k.enum(['admin', 'user']).default('user')
 });
 
@@ -548,8 +583,9 @@ const jsonSchema = schema.toJsonSchema();
 //   properties: {
 //     name: { type: "string", minLength: 2, description: "User's full name" },
 //     email: { type: "string", format: "email" },
-//     age: { type: "number", minimum: 18, maximum: 120, description: "Age in years" },
-//     role: { enum: ["admin", "user"], default: "user" }
+//     age: { type: "integer", minimum: 18, maximum: 120, description: "Age in years" },
+//     nickname: { type: ["string", "null"] },
+//     role: { type: "string", enum: ["admin", "user"], default: "user" }
 //   },
 //   required: ["name", "email", "age"]
 // }
@@ -580,30 +616,62 @@ schema.toJsonSchema().description // "User profile"
 | Schema | JSON Schema |
 |--------|------------|
 | `k.string()` | `{ type: "string" }` |
-| `k.string().email()` | `{ type: "string", format: "email" }` |
+| `.email()` / `.url()` / `.uuid()` / `.datetime()` / `.ip()` | `format: "email"` / `"uri"` / `"uuid"` / `"date-time"` / `"ipv4"` |
+| `.minLength()` / `.maxLength()` / `.length()` / `.nonempty()` | `minLength` / `maxLength` |
+| `.regex()`, `.startsWith()`, `.endsWith()`, `.includes()`, `.lowercase()`... | `pattern` (several patterns are combined with `allOf`) |
+| `.oneOf([...])` / `.notOneOf([...])` | `enum` / `not: { enum }` |
 | `k.number()` | `{ type: "number" }` |
-| `k.number().min(5).max(10)` | `{ type: "number", minimum: 5, maximum: 10 }` |
-| `k.number().greaterThan(5).lessThan(10)` | `{ type: "number", exclusiveMinimum: 5, exclusiveMaximum: 10 }` |
-| `k.boolean()` | `{ type: "boolean" }` |
+| `.integer()` | `type: "integer"` |
+| `.min()` / `.max()` / `.between()` / `.nonnegative()` / `.nonpositive()` | `minimum` / `maximum` |
+| `.greaterThan()` / `.lessThan()` / `.positive()` / `.negative()` | `exclusiveMinimum` / `exclusiveMaximum` |
+| `.equals(n)` / `.oneOf()` / `.notEqual()` / `.multipleOf()` | `const` / `enum` / `not` / `multipleOf` |
+| `k.boolean()` | `{ type: "boolean" }` (`.isTrue()` → `const: true`) |
 | `k.bigint()` | `{ type: "integer" }` |
 | `k.null()` | `{ type: "null" }` |
+| `k.undefined()` | `{ not: {} }` (inside an object: the key must be absent) |
 | `k.nan()` | `{ type: "number" }` |
-| `k.date()` | `{ type: "string", format: "date-time" }` |
+| `k.date()` | `{ type: "string", format: "date-time" }` (`.isDateOnly()` → `format: "date"`) |
 | `k.base64()` | `{ type: "string", contentEncoding: "base64" }` |
-| `k.array(T)` | `{ type: "array", items: { ... } }` |
+| `k.array(T)` | `{ type: "array", items: {...} }` + `minItems`, `maxItems`, `uniqueItems`, `contains` |
 | `k.object({...})` | `{ type: "object", properties: {...}, required: [...] }` |
-| `k.tuple([A, B])` | `{ type: "array", prefixItems: [{...}, {...}], items: false }` |
-| `k.record(T)` | `{ type: "object", additionalProperties: { ... } }` |
-| `k.set(T)` | `{ type: "array", uniqueItems: true, items: { ... } }` |
-| `k.map(K, V)` | `{ type: "object", additionalProperties: { ... } }` |
-| `k.literal(v)` | `{ const: v }` |
-| `k.enum([...])` | `{ enum: [...] }` |
+| `.strict()` | adds `additionalProperties: false` |
+| `k.tuple([A, B])` | `{ type: "array", prefixItems: [...], items: false, minItems, maxItems }` |
+| `k.record(T)` / `k.map(K, V)` | `{ type: "object", additionalProperties: {...} }` |
+| `k.set(T)` | `{ type: "array", uniqueItems: true, items: {...} }` |
+| `k.literal(v)` | `{ type: "<type of v>", const: v }` |
+| `k.enum([...])` | `{ type: "string", enum: [...] }` |
 | `k.never()` | `{ not: {} }` |
-| `k.union([...])` | `{ anyOf: [...] }` |
+| `k.union([...])` | `{ anyOf: [...] }` (first match wins, so several branches may match) |
 | `k.intersection([...])` | `{ allOf: [...] }` |
-| `k.discriminatedUnion(...)` | `{ oneOf: [...] }` |
-| `.default(v)` | adds `default: v` |
+| `k.discriminatedUnion(key, {...})` | `{ oneOf: [...] }`, each branch pins `key` with `const` + `required` |
+| `k.lazy(fn, name?)` (recursive) | `{ $anchor: name, ... }` and `{ $ref: "#name" }` at each recursion |
+| `.optional()` | key not in `required` |
+| `.nullable()` | `type: ["T", "null"]` (or `anyOf: [T, { type: "null" }]` for enum/const/union) |
+| `.nullish()` | like `.nullable()` + key not in `required` |
+| `.default(v)` | adds `default: v`; key not in `required` |
 | `.describe(s)` | adds `description: s` |
+
+**Recursive schemas** produce a self-contained reference:
+
+```typescript
+const category: any = k.lazy(() => k.object({
+  name: k.string(),
+  children: k.array(category)
+}), "Category");
+
+category.toJsonSchema();
+// {
+//   $anchor: "Category",
+//   type: "object",
+//   required: ["name", "children"],
+//   properties: {
+//     name: { type: "string" },
+//     children: { type: "array", items: { $ref: "#Category" } }
+//   }
+// }
+```
+
+**Not representable in JSON Schema** (validated at runtime only): `.refine()`, `.asyncRefine()`, `.transform()` output, `k.custom()`, date comparisons (`.min()`, `.isFuture()`...), email domain rules, file/base64 size and MIME rules, and regex flags (`/i`). Coerced schemas document the target type (e.g. `k.coerce.number()` → `type: "number"`).
 
 ## Type Coercion
 
@@ -626,8 +694,7 @@ Automatically convert input types before validation via `k.coerce.*`:
 k.coerce.number()
 k.coerce.number().positive().integer()
 
-// Proxy methods: min, max, positive, negative, integer, finite,
-//                multipleOf, between, greaterThan, lessThan, oneOf, notOneOf
+// Supports every k.number() method (min, max, positive, integer, between, ...)
 
 k.coerce.number().parse("123");    // 123
 k.coerce.number().parse("45.67");  // 45.67
@@ -639,7 +706,7 @@ k.coerce.number().parse("45.67");  // 45.67
 k.coerce.boolean()
 k.coerce.boolean().isTrue()
 
-// Proxy methods: isTrue, isFalse, equals
+// Supports every k.boolean() method (isTrue, isFalse, equals)
 
 k.coerce.boolean().parse("true");   // true
 k.coerce.boolean().parse("false");  // false
@@ -657,9 +724,7 @@ k.coerce.boolean().parse(0);        // false
 k.coerce.string()
 k.coerce.string().email().minLength(5)
 
-// Proxy methods: minLength, maxLength, email, url, regex, trim,
-//                lowercase, uppercase, oneOf, startsWith, endsWith, uuid,
-//                datetime, jwt, cuid2, ulid, emoji, cidr
+// Supports every k.string() method (minLength, email, regex, uuid, ...)
 
 k.coerce.string().parse(123);    // "123"
 k.coerce.string().parse(true);   // "true"
@@ -672,7 +737,7 @@ k.coerce.string().parse(null);   // ""
 k.coerce.date()
 k.coerce.date().isFuture()
 
-// Proxy methods: min, max, between, isFuture, isPast
+// Supports every k.date() method (min, max, between, isFuture, format, ...)
 
 k.coerce.date().parse("2024-01-15");     // Date object
 k.coerce.date().parse(1705276800000);    // Date from timestamp
@@ -781,7 +846,7 @@ const emailUniqueValidator = async (email, path) => {
 
 // Schema with async validators
 const registrationSchema = k.object({
-  email: k.email(),
+  email: k.email().asyncRefine(emailUniqueValidator),
   password: k.string().minLength(8)
 });
 
@@ -803,6 +868,21 @@ const isValid = await registrationSchema.isValidAsync(data);
 
 // Throw on failure
 const data = await registrationSchema.parseAsync(input);
+```
+
+> A schema with async validation (its own or nested) **must** be validated with the async API. Calling `parse()`/`safeParse()` on it throws `KataxAsyncValidationRequiredError` instead of silently skipping the async checks.
+
+### validateSchema(schema, data)
+
+Picks the right API for you: `safeParseAsync()` if the schema has async validation, `safeParse()` otherwise. Handy in request middleware:
+
+```typescript
+import { k, validateSchema } from 'katax-core';
+
+const result = await validateSchema(registrationSchema, req.body);
+if (!result.success) {
+  return res.status(422).json({ issues: result.issues });
+}
 ```
 
 **Schema async methods:**
@@ -840,12 +920,16 @@ try {
 }
 ```
 
-`KataxError` extends `Error` with a `readonly issues: Issue[]` property.
+`KataxError` extends `Error` with an `issues: Issue[]` property. Its `message` joins every issue as `path: message`.
+
+Other error classes:
+- `KataxAsyncValidationRequiredError` - thrown when `parse()`/`safeParse()` is used on a schema with async validation.
+- `KataxRefinementFailure` - internal marker used by `.refine()`. Errors thrown by your own `.transform()`/`.refine()` callbacks are **not** turned into issues; they propagate so real bugs aren't hidden.
 
 ## Error Utilities
 
 ```typescript
-import { createIssue, issues, mergeIssues, isIssueArray, describeReceived, KataxError } from 'katax-core';
+import { createIssue, issues, mergeIssues, isIssueArray, describeReceived } from 'katax-core';
 
 // Create a single issue
 const issue = createIssue(['name'], 'Name is required');
@@ -892,14 +976,16 @@ type User = kataxInfer<typeof userSchema>;
 
 // With descriptive type alias
 const createProjectSchema = k.object({
-  title: k.string().min(3),
+  title: k.string().minLength(3),
   description: k.string().optional(),
   tags: k.array(k.string())
 });
 
 type CreateProjectData = kataxInfer<typeof createProjectSchema>;
-// CreateProjectData = { title: string; description?: string; tags: string[] }
+// CreateProjectData = { title: string; description: string | undefined; tags: string[] }
 ```
+
+> Optional fields are inferred as `key: T | undefined` (the key itself is not marked `?`). At runtime the key may be omitted; when assigning object literals to the inferred type, include it as `undefined` or use `Partial<>`.
 
 ## Core Types
 
@@ -957,7 +1043,7 @@ const k = {
   union<T>(schemas): UnionSchema<T>
   discriminatedUnion<K, R>(key, schemasMap): DiscriminatedUnionSchema<K, R>
   intersection<T>(schemas): IntersectionSchema<T>
-  lazy<T>(resolver): LazySchema<T>
+  lazy<T>(resolver, name?): LazySchema<T>
   custom<T>(validator): CustomSchema<T>
   literal<T>(value): LiteralSchema<T>
   enum<T>(values): EnumSchema<T>

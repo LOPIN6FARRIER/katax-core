@@ -10,6 +10,7 @@ import type {
 import { KataxError, KataxAsyncValidationRequiredError, KataxRefinementFailure } from "./errors";
 import type { Schema } from "./Schema";
 import { JsonSchema } from "./schema.types";
+import { withNull } from "./jsonSchemaUtils";
 
 /**
  * Abstract base class for all schema types in Katax.
@@ -350,7 +351,8 @@ export class NullableSchema<T> extends WrapperSchema<T, T | null> {
     return this.inner._parse(input, path);
   }
   toJsonSchema(): JsonSchema {
-    return { ...this.inner.toJsonSchema(), ...this._jsonSchema } as JsonSchema;
+    // null is a valid value: reflect it in the schema (type: [..., "null"] or anyOf).
+    return withNull(this.inner.toJsonSchema(), this._jsonSchema);
   }
 }
 
@@ -360,7 +362,12 @@ export class NullishSchema<T> extends WrapperSchema<T, T | null | undefined> {
     return this.inner._parse(input, path);
   }
   toJsonSchema(): JsonSchema {
-    return { ...this.inner.toJsonSchema(), ...this._jsonSchema } as JsonSchema;
+    return withNull(this.inner.toJsonSchema(), this._jsonSchema);
+  }
+
+  /** undefined is accepted, so the key is not required inside an object. */
+  override isOptional(): boolean {
+    return true;
   }
 }
 
@@ -391,6 +398,14 @@ export class DefaultSchema<T> extends WrapperSchema<T, T> {
       ...this._jsonSchema,
       default: this.defaultValue,
     } as JsonSchema;
+  }
+
+  /**
+   * A missing value (undefined) is replaced by the default, so the key can be
+   * omitted from the input: it must not be listed in an object's `required`.
+   */
+  override isOptional(): boolean {
+    return true;
   }
 }
 
@@ -439,6 +454,11 @@ export class TransformSchema<T, U> extends BaseSchema<U> {
 
   protected _hasAsyncValidationNested(): boolean {
     return this.inner.hasAsyncValidation();
+  }
+
+  // Input-wise, a transform/brand accepts exactly what its inner schema accepts.
+  override isOptional(): boolean {
+    return this.inner.isOptional();
   }
 
   toJsonSchema(): JsonSchema {
@@ -527,6 +547,11 @@ export class BrandedSchema<T, B extends string> extends BaseSchema<
 
   protected _hasAsyncValidationNested(): boolean {
     return this.inner.hasAsyncValidation();
+  }
+
+  // Input-wise, a transform/brand accepts exactly what its inner schema accepts.
+  override isOptional(): boolean {
+    return this.inner.isOptional();
   }
 
   toJsonSchema(): JsonSchema {

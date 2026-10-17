@@ -149,6 +149,7 @@ export class DateSchema extends BaseSchema<Date> {
       },
       message: message ?? "Date must be date-only (no time component)",
     })
+    clone._jsonSchema = { ...clone._jsonSchema, format: "date" }
     return clone
   }
 

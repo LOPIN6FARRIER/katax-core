@@ -93,7 +93,8 @@ describe("toJsonSchema()", () => {
     expect(k.nan().toJsonSchema()).toEqual({ type: "number" })
   })
   it("k.undefined() returns json schema", () => {
-    expect(k.undefined().toJsonSchema()).toEqual({})
+    // undefined has no JSON value: nothing is allowed (inside an object: key must be absent)
+    expect(k.undefined().toJsonSchema()).toEqual({ not: {} })
   })
   it("k.null() returns json schema", () => {
     expect(k.null().toJsonSchema()).toEqual({ type: "null" })

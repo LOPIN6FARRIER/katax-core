@@ -1,6 +1,7 @@
 import { BaseSchema } from "../../core/BaseSchema";
 import { Issue, describeReceived } from "../../core/result";
 import type { JsonSchema } from "../../core/schema.types";
+import { withLowerBound, withUpperBound } from "../../core/jsonSchemaUtils";
 
 type ValidationRule<T> = {
   check: (value: T[]) => boolean;
@@ -135,10 +136,7 @@ export class ArraySchema<T> extends BaseSchema<T[]> {
       message: message ?? `Array must have at least ${min} elements`,
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      minItems: min,
-    };
+    clone._jsonSchema = withLowerBound(clone._jsonSchema ?? {}, "minItems", min);
 
     return clone;
   }
@@ -150,10 +148,7 @@ export class ArraySchema<T> extends BaseSchema<T[]> {
       message: message ?? `Array must have at most ${max} elements`,
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      maxItems: max,
-    };
+    clone._jsonSchema = withUpperBound(clone._jsonSchema ?? {}, "maxItems", max);
 
     return clone;
   }
@@ -173,11 +168,7 @@ export class ArraySchema<T> extends BaseSchema<T[]> {
       message: message ?? `Array must have exactly ${exact} elements`,
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      minItems: exact,
-      maxItems: exact,
-    };
+    clone._jsonSchema = withUpperBound(withLowerBound(clone._jsonSchema ?? {}, "minItems", exact), "maxItems", exact);
 
     return clone;
   }
@@ -189,10 +180,7 @@ export class ArraySchema<T> extends BaseSchema<T[]> {
       message: message ?? "Array must not be empty",
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      minItems: 1,
-    };
+    clone._jsonSchema = withLowerBound(clone._jsonSchema ?? {}, "minItems", 1);
 
     return clone;
   }
@@ -235,6 +223,10 @@ export class ArraySchema<T> extends BaseSchema<T[]> {
       },
       message: message ?? `Array must contain ${element}`,
     });
+    // Only a JSON-representable element can be expressed as `contains`.
+    if (isJsonValue(element)) {
+      clone._jsonSchema = { ...clone._jsonSchema, contains: { const: element } };
+    }
     return clone;
   }
 
@@ -277,4 +269,16 @@ export class ArraySchema<T> extends BaseSchema<T[]> {
       items: this.elementSchema ? this.elementSchema.toJsonSchema() : undefined,
     } as JsonSchema;
   }
+}
+
+function isJsonValue(value: unknown): boolean {
+  if (value === null) return true;
+  const t = typeof value;
+  if (t === "string" || t === "boolean") return true;
+  if (t === "number") return Number.isFinite(value as number);
+  if (Array.isArray(value)) return value.every(isJsonValue);
+  if (t === "object" && Object.getPrototypeOf(value) === Object.prototype) {
+    return Object.values(value as object).every(isJsonValue);
+  }
+  return false;
 }

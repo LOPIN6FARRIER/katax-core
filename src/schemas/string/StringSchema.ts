@@ -1,6 +1,7 @@
 import { BaseSchema } from "../../core/BaseSchema";
 import { Issue, describeReceived } from "../../core/result";
 import type { JsonSchema } from "../../core/schema.types";
+import { addNot, addPattern, escapeRegExp, withEnum, withLowerBound, withUpperBound } from "../../core/jsonSchemaUtils";
 
 type ValidationRule = {
   check: (value: string) => boolean;
@@ -57,10 +58,7 @@ export class StringSchema extends BaseSchema<string> {
       message: message ?? "String must be lowercase",
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      pattern: "^[a-z]+$",
-    };
+    clone._jsonSchema = addPattern(clone._jsonSchema ?? {}, "^[^A-Z]*$");
 
     return clone;
   }
@@ -71,10 +69,7 @@ export class StringSchema extends BaseSchema<string> {
       check: (value) => value === value.toUpperCase(),
       message: message ?? "String must be uppercase",
     });
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      pattern: "^[A-Z]+$",
-    };
+    clone._jsonSchema = addPattern(clone._jsonSchema ?? {}, "^[^a-z]*$");
     return clone;
   }
 
@@ -85,10 +80,7 @@ export class StringSchema extends BaseSchema<string> {
       message: message ?? "String must contain only letters",
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      pattern: "^[A-Za-z]+$",
-    };
+    clone._jsonSchema = addPattern(clone._jsonSchema ?? {}, "^[A-Za-z]+$");
 
     return clone;
   }
@@ -100,10 +92,7 @@ export class StringSchema extends BaseSchema<string> {
       message: message ?? "String must contain only letters and numbers",
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      pattern: "^[A-Za-z0-9]+$",
-    };
+    clone._jsonSchema = addPattern(clone._jsonSchema ?? {}, "^[A-Za-z0-9]+$");
 
     return clone;
   }
@@ -115,10 +104,7 @@ export class StringSchema extends BaseSchema<string> {
       message: message ?? "String must contain only ASCII characters",
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      pattern: "^[\\x00-\\x7F]+$",
-    };
+    clone._jsonSchema = addPattern(clone._jsonSchema ?? {}, "^[\\x00-\\x7F]+$");
 
     return clone;
   }
@@ -133,12 +119,7 @@ export class StringSchema extends BaseSchema<string> {
       message: message ?? "String must be a valid UUID",
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      format: "uuid",
-      pattern:
-        "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-    };
+    clone._jsonSchema = addPattern({ ...clone._jsonSchema, format: "uuid" }, "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$");
 
     return clone;
   }
@@ -169,10 +150,7 @@ export class StringSchema extends BaseSchema<string> {
       message: message ?? "String must not contain whitespace",
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      pattern: "^[^\\s]+$",
-    };
+    clone._jsonSchema = addPattern(clone._jsonSchema ?? {}, "^[^\\s]+$");
     return clone;
   }
 
@@ -183,10 +161,7 @@ export class StringSchema extends BaseSchema<string> {
       message: message ?? "String cannot be empty",
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      minLength: 1,
-    };
+    clone._jsonSchema = withLowerBound(clone._jsonSchema ?? {}, "minLength", 1);
 
     return clone;
   }
@@ -202,10 +177,7 @@ export class StringSchema extends BaseSchema<string> {
       message: message ?? `String must be at least ${length} characters`,
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      minLength: length,
-    };
+    clone._jsonSchema = withLowerBound(clone._jsonSchema ?? {}, "minLength", length);
     return clone;
   }
 
@@ -216,10 +188,7 @@ export class StringSchema extends BaseSchema<string> {
       message: message ?? `String must be at most ${length} characters`,
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      maxLength: length,
-    };
+    clone._jsonSchema = withUpperBound(clone._jsonSchema ?? {}, "maxLength", length);
 
     return clone;
   }
@@ -231,11 +200,11 @@ export class StringSchema extends BaseSchema<string> {
       message: message ?? `String must be exactly ${exact} characters`,
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      minLength: exact,
-      maxLength: exact,
-    };
+    clone._jsonSchema = withUpperBound(
+      withLowerBound(clone._jsonSchema ?? {}, "minLength", exact),
+      "maxLength",
+      exact,
+    );
 
     return clone;
   }
@@ -282,10 +251,7 @@ export class StringSchema extends BaseSchema<string> {
       message: message ?? "String does not match pattern",
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      pattern: pattern.source,
-    };
+    clone._jsonSchema = addPattern(clone._jsonSchema ?? {}, pattern.source);
 
     return clone;
   }
@@ -297,10 +263,7 @@ export class StringSchema extends BaseSchema<string> {
       message: message ?? `String must start with "${prefix}"`,
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      pattern: `^${prefix}`,
-    };
+    clone._jsonSchema = addPattern(clone._jsonSchema ?? {}, `^${escapeRegExp(prefix)}`);
 
     return clone;
   }
@@ -312,10 +275,7 @@ export class StringSchema extends BaseSchema<string> {
       message: message ?? `String must end with "${suffix}"`,
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      pattern: `${suffix}$`,
-    };
+    clone._jsonSchema = addPattern(clone._jsonSchema ?? {}, `${escapeRegExp(suffix)}$`);
 
     return clone;
   }
@@ -327,10 +287,7 @@ export class StringSchema extends BaseSchema<string> {
       message: message ?? `String must include "${substring}"`,
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      pattern: substring,
-    };
+    clone._jsonSchema = addPattern(clone._jsonSchema ?? {}, escapeRegExp(substring));
 
     return clone;
   }
@@ -361,10 +318,7 @@ export class StringSchema extends BaseSchema<string> {
       message: message ?? "String must be a valid JWT format",
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      pattern: "^[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]+$",
-    };
+    clone._jsonSchema = addPattern(clone._jsonSchema ?? {}, "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$");
 
     return clone;
   }
@@ -376,10 +330,7 @@ export class StringSchema extends BaseSchema<string> {
       message: message ?? "String must be a valid CUID2",
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      pattern: "^[a-z][a-z0-9]{7,31}$",
-    };
+    clone._jsonSchema = addPattern(clone._jsonSchema ?? {}, "^[a-z][a-z0-9]{7,31}$");
 
     return clone;
   }
@@ -391,10 +342,7 @@ export class StringSchema extends BaseSchema<string> {
       message: message ?? "String must be a valid ULID",
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      pattern: "^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{26}$",
-    };
+    clone._jsonSchema = addPattern(clone._jsonSchema ?? {}, "^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{26}$");
 
     return clone;
   }
@@ -405,10 +353,7 @@ export class StringSchema extends BaseSchema<string> {
       check: (value) => /^\p{Emoji}+$/u.test(value),
       message: message ?? "String must be a valid emoji sequence",
     });
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      pattern: "^\\p{Emoji}+$",
-    };
+    clone._jsonSchema = addPattern(clone._jsonSchema ?? {}, "^\\p{Emoji}+$");
     return clone;
   }
 
@@ -429,11 +374,7 @@ export class StringSchema extends BaseSchema<string> {
         message ??
         "String must be a valid CIDR notation (e.g., 192.168.1.0/24)",
     });
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      pattern:
-        "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\/(3[0-2]|[0-2]?[0-9])$",
-    };
+    clone._jsonSchema = addPattern(clone._jsonSchema ?? {}, "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\/(3[0-2]|[0-2]?[0-9])$");
     return clone;
   }
 
@@ -444,10 +385,7 @@ export class StringSchema extends BaseSchema<string> {
       message: message ?? `String must be one of: ${options.join(", ")}`,
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      enum: [...options],
-    };
+    clone._jsonSchema = withEnum(clone._jsonSchema ?? {}, options);
 
     return clone;
   }
@@ -458,12 +396,7 @@ export class StringSchema extends BaseSchema<string> {
       check: (value) => !options.includes(value),
       message: message ?? `String must not be one of: ${options.join(", ")}`,
     });
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      not: {
-        enum: [...options],
-      },
-    };
+    clone._jsonSchema = addNot(clone._jsonSchema ?? {}, { enum: [...options] });
     return clone;
   }
 
@@ -474,10 +407,7 @@ export class StringSchema extends BaseSchema<string> {
       message: "String must not have leading or trailing whitespace",
     });
 
-    clone._jsonSchema = {
-      ...clone._jsonSchema,
-      pattern: "^(?!\\s)(.*?)(?<!\\s)$",
-    };
+    clone._jsonSchema = addPattern(clone._jsonSchema ?? {}, "^(?!\\s)(.*?)(?<!\\s)$");
 
     return clone;
   }

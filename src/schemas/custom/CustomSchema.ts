@@ -89,10 +89,26 @@ export class CustomSchema<T> extends BaseSchema<T> {
  * status.parse('inactive') // throws
  * ```
  */
+/**
+ * JSON Schema for a literal: `const` plus its `type` (Swagger UI and most
+ * tools use `type` to render the field). `undefined` has no JSON
+ * representation, so it becomes "no value allowed" (`not: {}`); inside an
+ * object that means the key must be absent.
+ */
+function literalJsonSchema(value: unknown): JsonSchema {
+  if (value === undefined) return { not: {} }
+  if (value === null) return { type: "null", const: null }
+  const type =
+    typeof value === "number"
+      ? Number.isInteger(value) ? "integer" : "number"
+      : typeof value
+  return { type, const: value }
+}
+
 export class LiteralSchema<T extends string | number | boolean | null | undefined> extends BaseSchema<T> {
   constructor(private value: T) {
     super()
-    this._jsonSchema = { const: value }
+    this._jsonSchema = literalJsonSchema(value)
   }
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | T {
@@ -110,6 +126,11 @@ export class LiteralSchema<T extends string | number | boolean | null | undefine
     cloned._asyncValidators = [...this._asyncValidators]
     cloned._jsonSchema = { ...this._jsonSchema }
     return cloned
+  }
+
+  /** k.literal(undefined) only matches a missing value. */
+  override isOptional(): boolean {
+    return this.value === undefined
   }
 
   toJsonSchema(): JsonSchema {
@@ -133,7 +154,7 @@ export class EnumSchema<T extends readonly [string, ...string[]]> extends BaseSc
     if (values.length === 0) {
       throw new Error("Enum schema requires at least one value")
     }
-    this._jsonSchema = { enum: [...values] }
+    this._jsonSchema = { type: "string", enum: [...values] }
   }
 
   _parse(input: unknown, path: Issue["path"]): Issue[] | T[number] {
@@ -259,13 +280,13 @@ export class TupleSchema<T extends [BaseSchema<any>, ...BaseSchema<any>[]]> exte
 }> {
   constructor(private schemas: T) {
     super()
-    const items = schemas.map((s) => s.toJsonSchema())
+    // `prefixItems` resolved lazily in toJsonSchema(): computing it here would
+    // resolve a still-resolving k.lazy() element and throw a circular-reference error.
     this._jsonSchema = {
       type: "array",
-      prefixItems: items,
       items: false,
-      minItems: items.length,
-      maxItems: items.length,
+      minItems: schemas.length,
+      maxItems: schemas.length,
     }
   }
 
@@ -311,7 +332,10 @@ export class TupleSchema<T extends [BaseSchema<any>, ...BaseSchema<any>[]]> exte
   }
 
   toJsonSchema(): JsonSchema {
-    return { ...this._jsonSchema } as JsonSchema
+    return {
+      ...this._jsonSchema,
+      prefixItems: this.schemas.map((s) => s.toJsonSchema()),
+    } as JsonSchema
   }
 
   protected async _parseAsyncNested(value: { [K in keyof T]: T[K] extends BaseSchema<infer U> ? U : never }, path: Issue["path"]): Promise<Issue[]> {
@@ -357,9 +381,9 @@ export class TupleSchema<T extends [BaseSchema<any>, ...BaseSchema<any>[]]> exte
 export class RecordSchema<V extends BaseSchema<any>> extends BaseSchema<Record<string, V extends BaseSchema<infer U> ? U : never>> {
   constructor(private valueSchema: V) {
     super()
+    // `additionalProperties` resolved lazily in toJsonSchema() (same k.lazy() reason as TupleSchema).
     this._jsonSchema = {
       type: "object",
-      additionalProperties: valueSchema.toJsonSchema(),
     }
   }
 
@@ -398,7 +422,10 @@ export class RecordSchema<V extends BaseSchema<any>> extends BaseSchema<Record<s
   }
 
   toJsonSchema(): JsonSchema {
-    return { ...this._jsonSchema } as JsonSchema
+    return {
+      ...this._jsonSchema,
+      additionalProperties: this.valueSchema.toJsonSchema(),
+    } as JsonSchema
   }
 
   protected async _parseAsyncNested(value: Record<string, V extends BaseSchema<infer U> ? U : never>, path: Issue["path"]): Promise<Issue[]> {

@@ -50,6 +50,7 @@ export class BooleanSchema extends BaseSchema<boolean> {
       check: (value) => value === true,
       message: message ?? "Boolean must be true",
     })
+    clone._jsonSchema = { ...clone._jsonSchema, const: true }
     return clone
   }
 
@@ -59,6 +60,7 @@ export class BooleanSchema extends BaseSchema<boolean> {
       check: (value) => value === false,
       message: message ?? "Boolean must be false",
     })
+    clone._jsonSchema = { ...clone._jsonSchema, const: false }
     return clone
   }
 
@@ -68,6 +70,7 @@ export class BooleanSchema extends BaseSchema<boolean> {
       check: (value) => value === expected,
       message: message ?? `Boolean must be ${expected}`,
     })
+    clone._jsonSchema = { ...clone._jsonSchema, const: expected }
     return clone
   }
 
@@ -76,4 +79,4 @@ export class BooleanSchema extends BaseSchema<boolean> {
       ...this._jsonSchema,
     } as JsonSchema
   }
-}
+}

@@ -24,7 +24,11 @@ export class DiscriminatedUnionSchema<K extends string, R extends Record<string,
       return [{ path: [...path, this.key as string], message: `Expected discriminator key '${String(this.key)}' to be present` }]
     }
 
-    const schema = this.schemasMap[discriminatorValue as string]
+    // Own keys only: a value like "toString" or "constructor" must not resolve to
+    // an Object.prototype member (that crashed with "schema._parse is not a function").
+    const schema = Object.prototype.hasOwnProperty.call(this.schemasMap, discriminatorValue as string)
+      ? this.schemasMap[discriminatorValue as string]
+      : undefined
     if (!schema) {
       return [{ path: [...path, this.key as string], message: `Invalid discriminator value '${String(discriminatorValue)}'. Expected one of: ${Object.keys(this.schemasMap).join(", ")}` }]
     }
@@ -32,10 +36,38 @@ export class DiscriminatedUnionSchema<K extends string, R extends Record<string,
     return schema._parse(input, path) as DiscriminatedUnionOutput<R>
   }
 
+  /**
+   * Each branch is selected only by its discriminator value, so every branch in
+   * the JSON Schema pins that key (`const` + `required`). Without it, two
+   * branches whose other fields overlap could both match and `oneOf` would
+   * reject valid data.
+   */
   toJsonSchema(): JsonSchema {
     return {
       ...this._jsonSchema,
-      oneOf: Object.values(this.schemasMap).map((s) => s.toJsonSchema()),
+      oneOf: Object.entries(this.schemasMap).map(([value, s]) =>
+        this._pinDiscriminator(s.toJsonSchema(), value),
+      ),
+    }
+  }
+
+  private _pinDiscriminator(branch: JsonSchema, mapKey: string): JsonSchema {
+    const key = this.key as string
+    const declared = branch.properties?.[key]
+    // Keep the branch's own literal (it may be a number/boolean, e.g. k.literal(1)).
+    const keySchema: JsonSchema =
+      declared && ("const" in declared || declared.enum) ? declared : { const: mapKey }
+
+    if (branch.properties) {
+      const required = branch.required ?? []
+      return {
+        ...branch,
+        properties: { ...branch.properties, [key]: keySchema },
+        required: required.includes(key) ? required : [...required, key],
+      }
+    }
+    return {
+      allOf: [branch, { type: "object", properties: { [key]: keySchema }, required: [key] }],
     }
   }
 
